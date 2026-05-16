@@ -1,8 +1,9 @@
 "use client";
 
-import { Activity, BadgeDollarSign, BarChart3, Boxes, ExternalLink, Moon, Search, ShieldCheck, TrendingUp } from "lucide-react";
+import { Activity, BadgeDollarSign, BarChart3, Boxes, ExternalLink, Search, ShieldCheck, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AppShell } from "@/components/AppShell";
 import type { MarketAnalysis, SearchMode } from "@/types/market";
 import { money } from "@/lib/market/math";
 
@@ -16,15 +17,6 @@ const initialQuery = {
   mode: "balanced" as SearchMode
 };
 
-const themes = [
-  { value: "light", label: "Light" },
-  { value: "dark-graphite", label: "Graphite" },
-  { value: "dark-midnight", label: "Midnight" },
-  { value: "dark-neon", label: "Neon" }
-] as const;
-
-type ThemeName = (typeof themes)[number]["value"];
-
 function statusLabel(value: string) {
   return value.replace(/-/g, " ");
 }
@@ -34,7 +26,6 @@ export default function Home() {
   const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [theme, setTheme] = useState<ThemeName>("light");
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -63,48 +54,13 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    const savedTheme = window.localStorage.getItem("pokemon-market-theme") as ThemeName | null;
-    if (savedTheme && themes.some((item) => item.value === savedTheme)) {
-      setTheme(savedTheme);
-    }
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("pokemon-market-theme", theme);
-  }, [theme]);
-
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     loadAnalysis();
   }
 
   return (
-    <main className="shell">
-      <header className="topbar">
-        <div>
-          <p className="eyebrow">Market dashboard</p>
-          <h1>Pokemon Card Market Tracker</h1>
-        </div>
-        <div className="header-actions">
-          <label className="theme-picker">
-            <Moon size={18} />
-            <select value={theme} onChange={(event) => setTheme(event.target.value as ThemeName)} aria-label="Theme">
-              {themes.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="mode-pill">
-            <ShieldCheck size={18} />
-            Mock-safe MVP
-          </div>
-        </div>
-      </header>
-
+    <AppShell>
       <section className="search-band">
         <form onSubmit={onSubmit} className="search-grid">
           <label>
@@ -249,7 +205,7 @@ export default function Home() {
           </section>
         </>
       ) : null}
-    </main>
+    </AppShell>
   );
 }
 
