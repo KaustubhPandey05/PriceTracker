@@ -11,6 +11,11 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Pages
+
+- `http://localhost:3000` - single-card dashboard and listing confidence analysis.
+- `http://localhost:3000/overview` - market overview and discovery leaderboards.
+
 ## Environment
 
 Copy `.env.local.example` to `.env.local` when you are ready to use real providers.

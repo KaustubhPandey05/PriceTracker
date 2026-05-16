@@ -120,6 +120,7 @@ src/
 | `/api/providers/health` | Shows provider connection status | Working |
 | `/api/ebay/active-listings` | Active eBay supply listings | Mock now, live-ready later |
 | `/api/ebay/sold-listings` | Sold-history demand listings | Placeholder until eBay approval |
+| `/api/market/overview` | Market overview and discovery leaderboards | Working with mock/current provider data |
 | `/api/pricecharting/product` | Optional PriceCharting lookup | Placeholder until token/API format is confirmed |
 
 ## Mock Mode vs Live Mode

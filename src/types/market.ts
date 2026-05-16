@@ -81,3 +81,39 @@ export interface MarketAnalysis {
   gradeBreakdown: Record<string, number>;
   summary: string[];
 }
+
+export interface OverviewMetric {
+  label: string;
+  value: string;
+  detail: string;
+}
+
+export interface LeaderboardRow {
+  id: string;
+  cardName: string;
+  setName: string;
+  number: string;
+  imageUrl?: string;
+  primaryValue: number;
+  secondaryValue?: number;
+  badge: string;
+  note: string;
+}
+
+export interface NoisyListingRow {
+  id: string;
+  title: string;
+  price: number;
+  reason: string;
+  url: string;
+}
+
+export interface MarketOverview {
+  generatedAt: string;
+  metrics: OverviewMetric[];
+  highestValueCards: LeaderboardRow[];
+  valueGapCards: LeaderboardRow[];
+  tightSupplyCards: LeaderboardRow[];
+  noisyListings: NoisyListingRow[];
+  explainers: Record<string, string>;
+}
