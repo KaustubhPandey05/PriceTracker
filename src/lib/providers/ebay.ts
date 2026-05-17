@@ -1,6 +1,7 @@
 import type { CardIdentity, CardSearchParams, MarketListing } from "@/types/market";
 import { env, isMockMode } from "@/lib/env";
 import { makeSearchQuery, scoreListing } from "@/lib/market/search";
+import { median } from "@/lib/market/math";
 import { mockActiveListings } from "@/lib/providers/mock";
 
 type TokenFailure = "missing-config" | "unauthorized" | "network" | "unknown";
@@ -100,6 +101,33 @@ function fallbackListings(card: CardIdentity | undefined, params: CardSearchPara
   }));
 }
 
+function applyOutlierFilter(listings: MarketListing[]) {
+  const includedPrices = listings
+    .filter((listing) => listing.includedInAnalysis)
+    .map((listing) => listing.price + (listing.shipping ?? 0));
+  const middle = median(includedPrices);
+  if (!middle) return listings;
+
+  const highCutoff = middle * 2.5;
+  const lowCutoff = middle * 0.35;
+
+  return listings.map((listing) => {
+    if (!listing.includedInAnalysis) return listing;
+
+    const total = listing.price + (listing.shipping ?? 0);
+    if (total > highCutoff || total < lowCutoff) {
+      return {
+        ...listing,
+        confidence: "low" as const,
+        includedInAnalysis: false,
+        reason: `Excluded: price outlier versus active median (${listing.reason})`
+      };
+    }
+
+    return listing;
+  });
+}
+
 export async function getActiveListings(card: CardIdentity | undefined, params: CardSearchParams): Promise<MarketListing[]> {
   if (isMockMode() || !env.ebayClientId || !env.ebayClientSecret) {
     return mockActiveListings(card, params);
@@ -125,7 +153,7 @@ export async function getActiveListings(card: CardIdentity | undefined, params: 
     if (!response.ok) return fallbackListings(card, params);
     const payload = await response.json() as { itemSummaries?: EbayItemSummary[] };
 
-    return (payload.itemSummaries ?? []).map((item) => {
+    const listings = (payload.itemSummaries ?? []).map((item) => {
       const listing = {
         id: item.itemId,
         title: item.title,
@@ -141,6 +169,7 @@ export async function getActiveListings(card: CardIdentity | undefined, params: 
         ...scoreListing(listing, card, params)
       };
     });
+    return applyOutlierFilter(listings);
   } catch {
     return fallbackListings(card, params);
   }

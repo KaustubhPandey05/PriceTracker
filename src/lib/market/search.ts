@@ -16,6 +16,26 @@ const blockedTerms = [
   "sealed"
 ];
 
+const variantConflictTerms = [
+  "celebrations",
+  "classic collection",
+  "shadowless",
+  "1st edition",
+  "first edition",
+  "auto",
+  "autograph",
+  "signed",
+  "signature",
+  "chinese",
+  "japanese",
+  "italian",
+  " ita ",
+  "german",
+  "spanish",
+  "french",
+  "korean"
+];
+
 function normalize(value?: string) {
   return (value ?? "")
     .toLowerCase()
@@ -32,6 +52,16 @@ function includesToken(haystack: string, needle?: string) {
 function extractGrade(text: string) {
   const match = text.match(/\b(psa|cgc|bgs)\s*(10|9\.5|9|8\.5|8|7\.5|7|6|5|4|3|2|1)\b/i);
   return match ? `${match[1].toUpperCase()} ${match[2]}` : undefined;
+}
+
+function requestedAllowsConflict(term: string, query: CardSearchParams) {
+  const requested = normalize([query.q, query.set, query.number, query.variant, query.condition, query.grade].filter(Boolean).join(" "));
+  return requested.includes(normalize(term));
+}
+
+function findVariantConflicts(title: string, query: CardSearchParams) {
+  const paddedTitle = ` ${title} `;
+  return variantConflictTerms.filter((term) => paddedTitle.includes(normalize(term)) && !requestedAllowsConflict(term, query));
 }
 
 export function scoreListing(listing: Omit<MarketListing, "confidence" | "includedInAnalysis" | "reason">, card: CardIdentity | undefined, query: CardSearchParams): Pick<MarketListing, "confidence" | "includedInAnalysis" | "reason"> {
@@ -54,6 +84,15 @@ export function scoreListing(listing: Omit<MarketListing, "confidence" | "includ
       confidence: "low",
       includedInAnalysis: false,
       reason: `Excluded: requested ${query.grade}, listing appears to be ${listingGrade.toUpperCase()}`
+    };
+  }
+
+  const variantConflicts = findVariantConflicts(title, query);
+  if (variantConflicts.length) {
+    return {
+      confidence: "low",
+      includedInAnalysis: false,
+      reason: `Excluded: variant conflict (${variantConflicts.join(", ")})`
     };
   }
 
