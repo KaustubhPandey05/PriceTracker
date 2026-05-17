@@ -1,7 +1,10 @@
 import type { ProviderHealth } from "@/types/market";
 import { env, isMockMode } from "@/lib/env";
+import { checkEbayBrowseConnection } from "@/lib/providers/ebay";
 
-export function getProviderHealth(): ProviderHealth[] {
+export async function getProviderHealth(): Promise<ProviderHealth[]> {
+  const ebayBrowse = await checkEbayBrowseConnection();
+
   return [
     {
       name: "Pokemon TCG API",
@@ -14,22 +17,13 @@ export function getProviderHealth(): ProviderHealth[] {
     },
     {
       name: "eBay Browse API",
-      status: env.ebayClientId && env.ebayClientSecret ? "connected" : "missing-config",
-      detail: env.ebayClientId && env.ebayClientSecret
-        ? "Credentials are present for active listing supply."
-        : "Credentials pending. Mock active listings are used."
+      status: ebayBrowse.status,
+      detail: ebayBrowse.detail
     },
     {
       name: "eBay Marketplace Insights",
       status: "pending-approval",
       detail: "Sold-history demand analysis is placeholder-only until eBay approval is available."
-    },
-    {
-      name: "PriceCharting",
-      status: env.priceChartingToken ? "disabled" : "missing-config",
-      detail: env.priceChartingToken
-        ? "Token present; adapter is intentionally disabled until the subscription API format is confirmed."
-        : "Optional provider. Not required for the MVP."
     }
   ];
 }

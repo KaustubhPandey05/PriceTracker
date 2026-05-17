@@ -52,7 +52,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
   return {
     card,
     query: params,
-    providerHealth: getProviderHealth(),
+    providerHealth: await getProviderHealth(),
     referencePrice,
     activeListings,
     soldListings,
