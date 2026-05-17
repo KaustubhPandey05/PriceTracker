@@ -17,23 +17,23 @@ const blockedTerms = [
 ];
 
 const variantConflictTerms = [
-  "celebrations",
-  "classic collection",
-  "shadowless",
-  "1st edition",
-  "first edition",
-  "auto",
-  "autograph",
-  "signed",
-  "signature",
-  "chinese",
-  "japanese",
-  "italian",
-  " ita ",
-  "german",
-  "spanish",
-  "french",
-  "korean"
+  { term: "celebrations", label: "Celebrations" },
+  { term: "classic collection", label: "Classic Collection" },
+  { term: "shadowless", label: "Shadowless", allowWhenTitleIncludes: ["non-shadowless"] },
+  { term: "1st edition", label: "1st Edition" },
+  { term: "first edition", label: "1st Edition" },
+  { term: "auto", label: "Autograph" },
+  { term: "autograph", label: "Autograph" },
+  { term: "signed", label: "Signed" },
+  { term: "signature", label: "Signed" },
+  { term: "chinese", label: "Chinese language" },
+  { term: "japanese", label: "Japanese language" },
+  { term: "italian", label: "Italian language" },
+  { term: " ita ", label: "Italian language" },
+  { term: "german", label: "German language" },
+  { term: "spanish", label: "Spanish language" },
+  { term: "french", label: "French language" },
+  { term: "korean", label: "Korean language" }
 ];
 
 function normalize(value?: string) {
@@ -61,7 +61,14 @@ function requestedAllowsConflict(term: string, query: CardSearchParams) {
 
 function findVariantConflicts(title: string, query: CardSearchParams) {
   const paddedTitle = ` ${title} `;
-  return variantConflictTerms.filter((term) => paddedTitle.includes(normalize(term)) && !requestedAllowsConflict(term, query));
+  const conflicts = variantConflictTerms
+    .filter((conflict) => {
+      const allowedByTitle = conflict.allowWhenTitleIncludes?.some((allowed) => paddedTitle.includes(normalize(allowed)));
+      return !allowedByTitle && paddedTitle.includes(normalize(conflict.term)) && !requestedAllowsConflict(conflict.term, query);
+    })
+    .map((conflict) => conflict.label);
+
+  return [...new Set(conflicts)];
 }
 
 export function scoreListing(listing: Omit<MarketListing, "confidence" | "includedInAnalysis" | "reason">, card: CardIdentity | undefined, query: CardSearchParams): Pick<MarketListing, "confidence" | "includedInAnalysis" | "reason"> {
@@ -128,12 +135,15 @@ export function scoreListing(listing: Omit<MarketListing, "confidence" | "includ
 
   const strictThreshold = query.mode === "strict" ? 7 : query.mode === "loose" ? 3 : 5;
   const confidence: ListingConfidence = score >= 7 ? "high" : score >= 4 ? "medium" : "low";
-  const includedInAnalysis = score >= strictThreshold && confidence !== "low";
+  const missingRequestedNumber = Boolean(number && !title.includes(normalize(number)));
+  const includedInAnalysis = score >= strictThreshold && confidence !== "low" && !(query.mode !== "loose" && confidence === "medium" && missingRequestedNumber);
 
   return {
     confidence,
     includedInAnalysis,
-    reason: reasons.length ? reasons.join(", ") : "Low title similarity"
+    reason: !includedInAnalysis && confidence === "medium" && missingRequestedNumber
+      ? `Excluded: missing requested card number (${reasons.join(", ")})`
+      : reasons.length ? reasons.join(", ") : "Low title similarity"
   };
 }
 
