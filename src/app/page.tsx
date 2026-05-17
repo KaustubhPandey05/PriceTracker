@@ -157,8 +157,13 @@ export default function Home() {
 
             <Panel title="Demand Analysis" icon={<Activity />}>
               <div className="pending-box">
-                <strong>{statusLabel(analysis.metrics.demandSignal)}</strong>
-                <p>Sold-history analysis will unlock after eBay Marketplace Insights approval.</p>
+                <strong>{statusLabel(analysis.demandInsight.signal)}</strong>
+                <p>{statusLabel(analysis.demandInsight.basis)} · {analysis.demandInsight.confidence} confidence · score {analysis.demandInsight.score}/100</p>
+              </div>
+              <div className="factor-list">
+                {analysis.demandInsight.factors.map((factor) => (
+                  <p key={factor}>{factor}</p>
+                ))}
               </div>
             </Panel>
 

@@ -1,4 +1,4 @@
-import type { CardIdentity, CardSearchParams, MarketAnalysis, MarketListing } from "@/types/market";
+import type { CardIdentity, CardSearchParams, DemandInsight, MarketAnalysis, MarketListing } from "@/types/market";
 import { includedPrices, median } from "@/lib/market/math";
 import { getActiveListings, getSoldListings } from "@/lib/providers/ebay";
 import { getProviderHealth } from "@/lib/providers/health";
@@ -18,7 +18,7 @@ function getGradeBreakdown(listings: MarketListing[]) {
   }, {});
 }
 
-function buildSummary(referencePrice: number | undefined, medianAsk: number | undefined, includedCount: number, activeCount: number) {
+function buildSummary(referencePrice: number | undefined, medianAsk: number | undefined, includedCount: number, activeCount: number, demandInsight: DemandInsight) {
   const summary: string[] = [];
   if (!activeCount) {
     summary.push("No active eBay-style listings are available for this search yet.");
@@ -31,8 +31,88 @@ function buildSummary(referencePrice: number | undefined, medianAsk: number | un
     const spread = ((medianAsk - referencePrice) / referencePrice) * 100;
     summary.push(`Median active asking price is ${Math.abs(spread).toFixed(1)}% ${spread >= 0 ? "above" : "below"} the reference price.`);
   }
-  summary.push("Demand scoring is limited until eBay sold-history access is approved.");
+  summary.push(`Demand is currently estimated from ${demandInsight.basis} with ${demandInsight.confidence} confidence.`);
   return summary;
+}
+
+function priceSpread(prices: number[]) {
+  if (prices.length < 2) return undefined;
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+  const middle = median(prices);
+  return middle ? (high - low) / middle : undefined;
+}
+
+function buildDemandInsight(prices: number[], includedCount: number, activeCount: number, soldListings: MarketListing[]): DemandInsight {
+  if (soldListings.length) {
+    return {
+      signal: "steady",
+      confidence: "medium",
+      score: 65,
+      basis: "sold-history",
+      factors: [`${soldListings.length} sold listings are available for demand analysis.`]
+    };
+  }
+
+  if (!activeCount || !includedCount) {
+    return {
+      signal: "unknown",
+      confidence: "low",
+      score: 0,
+      basis: "active-listing proxy",
+      factors: [
+        "No usable active listings passed confidence filters.",
+        "Sold-history data is not connected yet."
+      ]
+    };
+  }
+
+  const spread = priceSpread(prices);
+  const includedRatio = includedCount / activeCount;
+  let score = 45;
+  const factors: string[] = [
+    `${includedCount} of ${activeCount} active listings passed confidence filters.`,
+    "Sold-history data is not connected yet, so this is not a true sell-through demand score."
+  ];
+
+  if (includedCount >= 8) {
+    score += 15;
+    factors.push("There is enough active market depth to compare asking prices.");
+  } else if (includedCount <= 3) {
+    score -= 5;
+    factors.push("Usable active supply is thin, so demand confidence is limited.");
+  }
+
+  if (includedRatio >= 0.55) {
+    score += 10;
+    factors.push("Most returned listings look relevant after filtering.");
+  } else {
+    score -= 10;
+    factors.push("Many returned listings were noisy or excluded.");
+  }
+
+  if (typeof spread === "number") {
+    if (spread <= 0.35) {
+      score += 10;
+      factors.push("Included asking prices are fairly clustered.");
+    } else if (spread >= 1) {
+      score -= 10;
+      factors.push("Included asking prices are widely spread.");
+    } else {
+      factors.push("Included asking prices show moderate spread.");
+    }
+  }
+
+  const boundedScore = Math.max(0, Math.min(100, Math.round(score)));
+  const signal = boundedScore >= 70 ? "strong" : boundedScore >= 45 ? "steady" : "weak";
+
+  return {
+    signal,
+    confidence: "low",
+    score: boundedScore,
+    basis: "active-listing proxy",
+    factors
+  };
 }
 
 export async function analyzeMarket(params: CardSearchParams): Promise<MarketAnalysis> {
@@ -48,6 +128,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
   const referenceDelta = referencePrice && medianAsk ? medianAsk - referencePrice : undefined;
   const includedListingCount = activeListings.filter((listing) => listing.includedInAnalysis).length;
   const supplySignal = includedListingCount === 0 ? "unknown" : includedListingCount <= 2 ? "low" : includedListingCount >= 8 ? "high" : "normal";
+  const demandInsight = buildDemandInsight(prices, includedListingCount, activeListings.length, soldListings);
 
   return {
     card,
@@ -64,11 +145,12 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
       highestAsk,
       referenceDelta,
       supplySignal,
-      demandSignal: "pending",
+      demandSignal: demandInsight.signal,
       trend: soldListings.length ? "stable" : "insufficient data",
-      confidence: soldListings.length ? "medium" : includedListingCount ? "medium" : "low"
+      confidence: demandInsight.confidence
     },
+    demandInsight,
     gradeBreakdown: getGradeBreakdown(activeListings.filter((listing) => listing.includedInAnalysis)),
-    summary: buildSummary(referencePrice, medianAsk, includedListingCount, activeListings.length)
+    summary: buildSummary(referencePrice, medianAsk, includedListingCount, activeListings.length, demandInsight)
   };
 }

@@ -86,15 +86,19 @@ export async function searchPokemonCards(params: CardSearchParams): Promise<Card
   url.searchParams.set("pageSize", "12");
   url.searchParams.set("select", "id,name,number,rarity,set,images,tcgplayer,cardmarket");
 
-  const response = await fetch(url, {
-    headers: env.pokemonTcgApiKey ? { "X-Api-Key": env.pokemonTcgApiKey } : {},
-    next: { revalidate: 3600 }
-  });
+  try {
+    const response = await fetch(url, {
+      headers: env.pokemonTcgApiKey ? { "X-Api-Key": env.pokemonTcgApiKey } : {},
+      next: { revalidate: 3600 }
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return mockCards;
+    }
+
+    const payload = await response.json() as { data?: PokemonTcgCard[] };
+    return (payload.data ?? []).map(mapCard);
+  } catch {
     return mockCards;
   }
-
-  const payload = await response.json() as { data?: PokemonTcgCard[] };
-  return (payload.data ?? []).map(mapCard);
 }
