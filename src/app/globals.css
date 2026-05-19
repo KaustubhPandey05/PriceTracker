@@ -592,6 +592,23 @@ select {
   margin: 0;
 }
 
+.factor-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.factor-list p {
+  background: var(--panel-soft);
+  border-left: 4px solid var(--amber);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 10px 12px;
+}
+
 .bars {
   display: grid;
   gap: 10px;

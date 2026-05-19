@@ -59,6 +59,14 @@ export interface ProviderHealth {
   detail: string;
 }
 
+export interface DemandInsight {
+  signal: "pending" | "weak" | "steady" | "strong" | "unknown";
+  confidence: "low" | "medium" | "high";
+  score: number;
+  basis: "active-listing proxy" | "sold-history";
+  factors: string[];
+}
+
 export interface MarketAnalysis {
   card?: CardIdentity;
   query: CardSearchParams;
@@ -78,6 +86,7 @@ export interface MarketAnalysis {
     trend: "rising" | "falling" | "stable" | "volatile" | "insufficient data";
     confidence: "low" | "medium" | "high";
   };
+  demandInsight: DemandInsight;
   gradeBreakdown: Record<string, number>;
   summary: string[];
 }
