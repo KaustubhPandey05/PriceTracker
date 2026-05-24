@@ -16,6 +16,12 @@ Open `http://localhost:3000`.
 - `http://localhost:3000` - single-card dashboard and listing confidence analysis.
 - `http://localhost:3000/overview` - market overview and discovery leaderboards.
 
+## Demand history
+
+The Demand Analysis panel includes a `Save snapshot` action. Each capture stores the current demand score, active supply, asking-price median, and available sold-window totals in `.local-data/demand-snapshots.json`.
+
+`.local-data/` is local-only and gitignored. Save multiple snapshots for the same search to see whether its demand signal is increasing, decreasing, stable, or volatile over time.
+
 ## Environment
 
 Copy `.env.local.example` to `.env.local` when you are ready to use real providers.

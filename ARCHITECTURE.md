@@ -117,6 +117,7 @@ src/
 | --- | --- | --- |
 | `/api/cards/search` | Search card identity data | Uses mock data in mock mode, Pokemon TCG API in live mode |
 | `/api/cards/analysis` | Main dashboard analysis endpoint | Working |
+| `/api/cards/snapshots` | Save a demand snapshot and return trend history | Working, local persistence |
 | `/api/providers/health` | Shows provider connection status | Working |
 | `/api/ebay/active-listings` | Active eBay supply listings | Mock now, live-ready later |
 | `/api/ebay/sold-listings` | Sold-history demand listings | Placeholder until eBay approval |
@@ -178,6 +179,18 @@ It includes:
 - market metrics
 - grade/condition breakdown
 - plain-English summary
+
+## Demand History
+
+Demand history is stored locally in `.local-data/demand-snapshots.json`, which is excluded from git. The dashboard saves snapshots manually so a user decides which card searches to track.
+
+When sold-history data becomes available, the demand score uses:
+
+```txt
+45% sell-through + 25% sales velocity + 20% price strength + 10% listing quality
+```
+
+Without sold history, the app clearly labels the score as a low-confidence active-listing proxy. Two or more saved snapshots allow the dashboard to show movement from the previous score and rolling 7-day/30-day comparisons.
 
 ```mermaid
 flowchart LR

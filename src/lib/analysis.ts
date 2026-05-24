@@ -4,6 +4,7 @@ import { getActiveListings, getSoldListings } from "@/lib/providers/ebay";
 import { getProviderHealth } from "@/lib/providers/health";
 import { findMockCard } from "@/lib/providers/mock";
 import { searchPokemonCards } from "@/lib/providers/pokemonTcg";
+import { getDemandHistory } from "@/lib/snapshots";
 
 function getReferencePrice(card?: CardIdentity) {
   return card?.prices.find((price) => typeof price.market === "number")?.market
@@ -43,14 +44,54 @@ function priceSpread(prices: number[]) {
   return middle ? (high - low) / middle : undefined;
 }
 
+function soldWithinDays(listings: MarketListing[], days: number) {
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return listings.filter((listing) => listing.soldAt && new Date(listing.soldAt).getTime() >= cutoff);
+}
+
+function clampScore(value: number) {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
 function buildDemandInsight(prices: number[], includedCount: number, activeCount: number, soldListings: MarketListing[]): DemandInsight {
+  const sold7Listings = soldWithinDays(soldListings, 7);
+  const sold30Listings = soldWithinDays(soldListings, 30);
+  const sold90Listings = soldWithinDays(soldListings, 90);
+  const soldCounts = {
+    sold7: sold7Listings.length,
+    sold30: sold30Listings.length,
+    sold90: sold90Listings.length
+  };
+
   if (soldListings.length) {
+    const soldPrices = sold30Listings.map((listing) => listing.price + (listing.shipping ?? 0));
+    const medianSoldPrice = median(soldPrices);
+    const medianActiveAsk = median(prices);
+    const sellThroughRate = soldCounts.sold30 / Math.max(1, soldCounts.sold30 + includedCount);
+    const sellThroughScore = clampScore((sellThroughRate / 0.35) * 100);
+    const salesVelocityScore = clampScore((soldCounts.sold30 / 10) * 100);
+    const priceStrengthScore = medianSoldPrice && medianActiveAsk ? clampScore((medianSoldPrice / medianActiveAsk) * 100) : 0;
+    const listingQualityScore = activeCount ? clampScore((includedCount / activeCount) * 100) : 0;
+    const score = clampScore(
+      sellThroughScore * 0.45
+      + salesVelocityScore * 0.25
+      + priceStrengthScore * 0.2
+      + listingQualityScore * 0.1
+    );
+    const signal = score >= 70 ? "strong" : score >= 40 ? "steady" : "weak";
+
     return {
-      signal: "steady",
+      signal,
       confidence: "medium",
-      score: 65,
+      score,
       basis: "sold-history",
-      factors: [`${soldListings.length} sold listings are available for demand analysis.`]
+      soldCounts,
+      medianSoldPrice,
+      factors: [
+        `${soldCounts.sold30} completed sales in the last 30 days drive the demand score.`,
+        `Sell-through score: ${sellThroughScore}/100; sales velocity score: ${salesVelocityScore}/100.`,
+        `Price strength score: ${priceStrengthScore}/100; listing quality score: ${listingQualityScore}/100.`
+      ]
     };
   }
 
@@ -60,6 +101,7 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
       confidence: "low",
       score: 0,
       basis: "active-listing proxy",
+      soldCounts,
       factors: [
         "No usable active listings passed confidence filters.",
         "Sold-history data is not connected yet."
@@ -111,6 +153,7 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
     confidence: "low",
     score: boundedScore,
     basis: "active-listing proxy",
+    soldCounts,
     factors
   };
 }
@@ -129,6 +172,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
   const includedListingCount = activeListings.filter((listing) => listing.includedInAnalysis).length;
   const supplySignal = includedListingCount === 0 ? "unknown" : includedListingCount <= 2 ? "low" : includedListingCount >= 8 ? "high" : "normal";
   const demandInsight = buildDemandInsight(prices, includedListingCount, activeListings.length, soldListings);
+  const demandHistory = await getDemandHistory(params);
 
   return {
     card,
@@ -150,6 +194,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
       confidence: demandInsight.confidence
     },
     demandInsight,
+    demandHistory,
     gradeBreakdown: getGradeBreakdown(activeListings.filter((listing) => listing.includedInAnalysis)),
     summary: buildSummary(referencePrice, medianAsk, includedListingCount, activeListings.length, demandInsight)
   };

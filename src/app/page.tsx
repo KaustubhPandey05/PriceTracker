@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, BadgeDollarSign, BarChart3, Boxes, ExternalLink, Search, ShieldCheck, TrendingUp } from "lucide-react";
+import { Activity, BadgeDollarSign, BarChart3, Boxes, ExternalLink, Save, Search, ShieldCheck, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -25,6 +25,8 @@ export default function Home() {
   const [query, setQuery] = useState(initialQuery);
   const [analysis, setAnalysis] = useState<MarketAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSavingSnapshot, setIsSavingSnapshot] = useState(false);
+  const [snapshotMessage, setSnapshotMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const queryString = useMemo(() => {
@@ -56,7 +58,29 @@ export default function Home() {
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setSnapshotMessage(null);
     loadAnalysis();
+  }
+
+  async function saveSnapshot() {
+    if (!analysis) return;
+    setIsSavingSnapshot(true);
+    setSnapshotMessage(null);
+    try {
+      const response = await fetch("/api/cards/snapshots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(analysis.query)
+      });
+      if (!response.ok) throw new Error("Could not save snapshot.");
+      const result = await response.json() as { history: MarketAnalysis["demandHistory"] };
+      setAnalysis({ ...analysis, demandHistory: result.history });
+      setSnapshotMessage("Snapshot saved.");
+    } catch (err) {
+      setSnapshotMessage(err instanceof Error ? err.message : "Could not save snapshot.");
+    } finally {
+      setIsSavingSnapshot(false);
+    }
   }
 
   return (
@@ -160,6 +184,14 @@ export default function Home() {
                 <strong>{statusLabel(analysis.demandInsight.signal)}</strong>
                 <p>{statusLabel(analysis.demandInsight.basis)} · {analysis.demandInsight.confidence} confidence · score {analysis.demandInsight.score}/100</p>
               </div>
+              <div className="snapshot-actions">
+                <button type="button" className="secondary-button" onClick={saveSnapshot} disabled={isSavingSnapshot}>
+                  <Save size={16} />
+                  {isSavingSnapshot ? "Saving" : "Save snapshot"}
+                </button>
+                {snapshotMessage ? <span>{snapshotMessage}</span> : null}
+              </div>
+              <DemandHistoryPanel analysis={analysis} />
               <div className="factor-list">
                 {analysis.demandInsight.factors.map((factor) => (
                   <p key={factor}>{factor}</p>
@@ -234,5 +266,42 @@ function Panel({ title, icon, children }: { title: string; icon: React.ReactNode
       </div>
       {children}
     </section>
+  );
+}
+
+function signedValue(value?: number) {
+  if (typeof value !== "number") return "N/A";
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function DemandHistoryPanel({ analysis }: { analysis: MarketAnalysis }) {
+  const { demandHistory } = analysis;
+
+  return (
+    <div className="demand-history">
+      <div className="demand-history-heading">
+        <strong>Demand over time</strong>
+        <span className={`trend-label ${demandHistory.trend.replaceAll(" ", "-")}`}>{demandHistory.trend}</span>
+      </div>
+      {demandHistory.snapshots.length < 2 ? (
+        <p className="history-empty">Save at least two snapshots to see whether demand is changing.</p>
+      ) : (
+        <>
+          <div className="trend-metrics">
+            <div><span>Previous</span><b>{signedValue(demandHistory.changeFromPrevious)}</b></div>
+            <div><span>7-day avg</span><b>{signedValue(demandHistory.change7)}</b></div>
+            <div><span>30-day avg</span><b>{signedValue(demandHistory.change30)}</b></div>
+          </div>
+          <div className="sparkline" aria-label="Saved demand score history">
+            {demandHistory.snapshots.slice(-12).map((snapshot) => (
+              <div key={snapshot.id} className="spark-column" title={`${new Date(snapshot.capturedAt).toLocaleDateString()}: ${snapshot.demandScore}`}>
+                <i style={{ height: `${Math.max(6, snapshot.demandScore)}%` }} />
+                <small>{snapshot.demandScore}</small>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
