@@ -16,6 +16,12 @@ Open `http://localhost:3000`.
 - `http://localhost:3000` - single-card dashboard and listing confidence analysis.
 - `http://localhost:3000/overview` - market overview and discovery leaderboards.
 
+## Demand history
+
+The Demand Analysis panel includes a `Save snapshot` action. Each capture stores the current demand score, active supply, asking-price median, and available sold-window totals in `.local-data/demand-snapshots.json`.
+
+`.local-data/` is local-only and gitignored. Save multiple snapshots for the same search to see whether its demand signal is increasing, decreasing, stable, or volatile over time.
+
 ## Environment
 
 Copy `.env.local.example` to `.env.local` when you are ready to use real providers.
@@ -36,5 +42,5 @@ PRICECHARTING_TOKEN=
 - Pokemon TCG API: free card identity, images, and available reference prices.
 - Mock eBay: active listing examples for local analysis.
 - eBay Browse API: adapter is ready for active listing supply once credentials are approved.
-- eBay Marketplace Insights: route is present, but sold-history analysis remains pending approval.
+- eBay Marketplace Insights: sold-history route is present, but eBay currently documents this API as restricted and not open to new users.
 - PriceCharting: optional placeholder until a token and subscription API format are available.

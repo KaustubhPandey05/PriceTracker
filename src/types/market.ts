@@ -1,7 +1,7 @@
 export type SearchMode = "strict" | "balanced" | "loose";
 export type ListingConfidence = "high" | "medium" | "low";
 export type ListingSource = "mock-ebay" | "ebay" | "pricecharting" | "pokemon-tcg";
-export type ProviderStatus = "connected" | "mocked" | "missing-config" | "pending-approval" | "disabled" | "error";
+export type ProviderStatus = "connected" | "mocked" | "missing-config" | "unavailable" | "disabled" | "error";
 
 export interface CardSearchParams {
   q: string;
@@ -65,6 +65,39 @@ export interface DemandInsight {
   score: number;
   basis: "active-listing proxy" | "sold-history";
   factors: string[];
+  soldCounts: {
+    sold7: number;
+    sold30: number;
+    sold90: number;
+  };
+  medianSoldPrice?: number;
+}
+
+export interface DemandSnapshot {
+  id: string;
+  queryKey: string;
+  capturedAt: string;
+  cardName: string;
+  setName: string;
+  number: string;
+  activeListingCount: number;
+  includedListingCount: number;
+  medianActiveAsk?: number;
+  sold7: number;
+  sold30: number;
+  sold90: number;
+  medianSoldPrice?: number;
+  demandScore: number;
+  demandBasis: DemandInsight["basis"];
+  supplySignal: "low" | "normal" | "high" | "unknown";
+}
+
+export interface DemandHistory {
+  snapshots: DemandSnapshot[];
+  trend: "not enough history" | "increasing" | "decreasing" | "stable" | "volatile";
+  changeFromPrevious?: number;
+  change7?: number;
+  change30?: number;
 }
 
 export interface MarketAnalysis {
@@ -87,6 +120,7 @@ export interface MarketAnalysis {
     confidence: "low" | "medium" | "high";
   };
   demandInsight: DemandInsight;
+  demandHistory: DemandHistory;
   gradeBreakdown: Record<string, number>;
   summary: string[];
 }

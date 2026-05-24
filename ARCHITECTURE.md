@@ -117,6 +117,7 @@ src/
 | --- | --- | --- |
 | `/api/cards/search` | Search card identity data | Uses mock data in mock mode, Pokemon TCG API in live mode |
 | `/api/cards/analysis` | Main dashboard analysis endpoint | Working |
+| `/api/cards/snapshots` | Save a demand snapshot and return trend history | Working, local persistence |
 | `/api/providers/health` | Shows provider connection status | Working |
 | `/api/ebay/active-listings` | Active eBay supply listings | Mock now, live-ready later |
 | `/api/ebay/sold-listings` | Sold-history demand listings | Placeholder until eBay approval |
@@ -179,6 +180,18 @@ It includes:
 - grade/condition breakdown
 - plain-English summary
 
+## Demand History
+
+Demand history is stored locally in `.local-data/demand-snapshots.json`, which is excluded from git. The dashboard saves snapshots manually so a user decides which card searches to track.
+
+When sold-history data becomes available, the demand score uses:
+
+```txt
+45% sell-through + 25% sales velocity + 20% price strength + 10% listing quality
+```
+
+Without sold history, the app clearly labels the score as a low-confidence active-listing proxy. Two or more saved snapshots allow the dashboard to show movement from the previous score and rolling 7-day/30-day comparisons.
+
 ```mermaid
 flowchart LR
   Card["Card identity"] --> Analysis["MarketAnalysis"]
@@ -193,7 +206,7 @@ flowchart LR
 ## Current Limitations
 
 - eBay active listings use mock data unless `DATA_MODE=live` and eBay credentials are present.
-- eBay sold-history demand analysis is not live until Marketplace Insights access is approved.
+- eBay sold-history demand analysis is not live; eBay currently documents Marketplace Insights as restricted and not open to new users.
 - PriceCharting is only a placeholder provider for now.
 - Trend analysis is conservative because true historical sold data is not available yet.
 
@@ -225,7 +238,7 @@ Good next steps:
 
 - Add a small database to store historical snapshots.
 - Add scheduled price checks.
-- Add real sold-history metrics after eBay approval.
+- Add real sold-history metrics after selecting an available sold-data provider.
 - Add a watchlist for cards you care about.
 - Add provider-specific caching and rate-limit handling.
 - Add tests for confidence scoring and provider adapters.
