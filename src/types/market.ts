@@ -1,7 +1,7 @@
 export type SearchMode = "strict" | "balanced" | "loose";
 export type ListingConfidence = "high" | "medium" | "low";
 export type ListingSource = "mock-ebay" | "ebay" | "pricecharting" | "pokemon-tcg";
-export type ProviderStatus = "connected" | "mocked" | "missing-config" | "pending-approval" | "disabled" | "error";
+export type ProviderStatus = "connected" | "mocked" | "missing-config" | "unavailable" | "disabled" | "error";
 
 export interface CardSearchParams {
   q: string;

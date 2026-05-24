@@ -42,5 +42,5 @@ PRICECHARTING_TOKEN=
 - Pokemon TCG API: free card identity, images, and available reference prices.
 - Mock eBay: active listing examples for local analysis.
 - eBay Browse API: adapter is ready for active listing supply once credentials are approved.
-- eBay Marketplace Insights: route is present, but sold-history analysis remains pending approval.
+- eBay Marketplace Insights: sold-history route is present, but eBay currently documents this API as restricted and not open to new users.
 - PriceCharting: optional placeholder until a token and subscription API format are available.

@@ -817,7 +817,7 @@ select {
 }
 
 .missing-config,
-.pending-approval,
+.unavailable,
 .medium {
   background: color-mix(in srgb, var(--amber) 18%, var(--panel));
   color: var(--amber);

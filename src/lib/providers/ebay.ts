@@ -176,6 +176,6 @@ export async function getActiveListings(card: CardIdentity | undefined, params: 
 }
 
 export async function getSoldListings(): Promise<MarketListing[]> {
-  // Marketplace Insights access is approval-gated; keep the route stable until credentials are ready.
+  // eBay Marketplace Insights is restricted and not open to new users; keep this route explicit until a sold-data provider is selected.
   return [];
 }

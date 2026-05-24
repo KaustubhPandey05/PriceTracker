@@ -22,8 +22,8 @@ export async function getProviderHealth(): Promise<ProviderHealth[]> {
     },
     {
       name: "eBay Marketplace Insights",
-      status: "pending-approval",
-      detail: "Sold-history demand analysis is placeholder-only until eBay approval is available."
+      status: "unavailable",
+      detail: "Sold-history data is not connected. eBay documents Marketplace Insights as restricted and not open to new users."
     }
   ];
 }

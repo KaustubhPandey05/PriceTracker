@@ -17,18 +17,21 @@ type ThemeName = (typeof themes)[number]["value"];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [theme, setTheme] = useState<ThemeName>("light");
+  const [themeReady, setThemeReady] = useState(false);
 
   useEffect(() => {
     const savedTheme = window.localStorage.getItem("pokemon-market-theme") as ThemeName | null;
     if (savedTheme && themes.some((item) => item.value === savedTheme)) {
       setTheme(savedTheme);
     }
+    setThemeReady(true);
   }, []);
 
   useEffect(() => {
+    if (!themeReady) return;
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("pokemon-market-theme", theme);
-  }, [theme]);
+  }, [theme, themeReady]);
 
   return (
     <main className="shell">

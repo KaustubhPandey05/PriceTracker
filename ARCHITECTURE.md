@@ -206,7 +206,7 @@ flowchart LR
 ## Current Limitations
 
 - eBay active listings use mock data unless `DATA_MODE=live` and eBay credentials are present.
-- eBay sold-history demand analysis is not live until Marketplace Insights access is approved.
+- eBay sold-history demand analysis is not live; eBay currently documents Marketplace Insights as restricted and not open to new users.
 - PriceCharting is only a placeholder provider for now.
 - Trend analysis is conservative because true historical sold data is not available yet.
 
@@ -238,7 +238,7 @@ Good next steps:
 
 - Add a small database to store historical snapshots.
 - Add scheduled price checks.
-- Add real sold-history metrics after eBay approval.
+- Add real sold-history metrics after selecting an available sold-data provider.
 - Add a watchlist for cards you care about.
 - Add provider-specific caching and rate-limit handling.
 - Add tests for confidence scoring and provider adapters.
