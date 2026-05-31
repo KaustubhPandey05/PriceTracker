@@ -48,6 +48,8 @@ export interface MarketListing {
   condition?: string;
   grade?: string;
   soldAt?: string;
+  imageUrl?: string;
+  lifecycleStatus?: ListingLifecycleStatus;
   confidence: ListingConfidence;
   includedInAnalysis: boolean;
   reason: string;
@@ -63,7 +65,7 @@ export interface DemandInsight {
   signal: "pending" | "weak" | "steady" | "strong" | "unknown";
   confidence: "low" | "medium" | "high";
   score: number;
-  basis: "active-listing proxy" | "sold-history";
+  basis: "active-listing proxy" | "listing-lifecycle" | "sold-history";
   factors: string[];
   soldCounts: {
     sold7: number;
@@ -71,6 +73,81 @@ export interface DemandInsight {
     sold90: number;
   };
   medianSoldPrice?: number;
+}
+
+export type ListingLifecycleStatus = "new" | "continuing" | "repriced" | "unavailable";
+export type TrackingSeriesKind = "manual" | "raw-near-mint-proxy" | "psa-9";
+
+export interface ListingPricePoint {
+  observedAt: string;
+  totalAsk: number;
+}
+
+export interface ListingObservation {
+  seriesKey: string;
+  listingId: string;
+  title: string;
+  url: string;
+  imageUrl?: string;
+  currency: string;
+  condition?: string;
+  grade?: string;
+  confidence: ListingConfidence;
+  includedInAnalysis: boolean;
+  reason: string;
+  firstSeenAt: string;
+  lastCheckedAt: string;
+  unavailableAt?: string;
+  status: ListingLifecycleStatus;
+  priceHistory: ListingPricePoint[];
+}
+
+export interface ListingTrendSignal {
+  label: "Not enough history" | "Cooling" | "Stable" | "Strengthening";
+  confidence: "low" | "medium";
+  score?: number;
+  factors: string[];
+  newListings: number;
+  unavailableListings: number;
+  priceIncreases: number;
+  priceCuts: number;
+  activeSupplyChange: number;
+  medianAskChange?: number;
+}
+
+export interface TrackingSeries {
+  key: string;
+  name: string;
+  kind: TrackingSeriesKind;
+  query: CardSearchParams;
+}
+
+export interface ListingCapture {
+  id: string;
+  seriesKey: string;
+  seriesName: string;
+  seriesKind: TrackingSeriesKind;
+  query: CardSearchParams;
+  capturedAt: string;
+  dayKey: string;
+  activeListingCount: number;
+  includedListingIds: string[];
+  medianActiveAsk?: number;
+  newListings: number;
+  unavailableListings: number;
+  priceIncreases: number;
+  priceCuts: number;
+  trend: ListingTrendSignal;
+}
+
+export interface TrackedSeriesSummary {
+  key: string;
+  name: string;
+  kind: TrackingSeriesKind;
+  captures: number;
+  lastCapturedAt?: string;
+  activeListings?: number;
+  trend: ListingTrendSignal;
 }
 
 export interface DemandSnapshot {
@@ -121,6 +198,7 @@ export interface MarketAnalysis {
   };
   demandInsight: DemandInsight;
   demandHistory: DemandHistory;
+  listingTrend?: ListingTrendSignal;
   gradeBreakdown: Record<string, number>;
   summary: string[];
 }
@@ -158,5 +236,6 @@ export interface MarketOverview {
   valueGapCards: LeaderboardRow[];
   tightSupplyCards: LeaderboardRow[];
   noisyListings: NoisyListingRow[];
+  trackedSeries: TrackedSeriesSummary[];
   explainers: Record<string, string>;
 }

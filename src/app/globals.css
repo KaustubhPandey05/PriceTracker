@@ -419,6 +419,52 @@ select {
   gap: 14px;
 }
 
+.lifecycle-panel {
+  margin-bottom: 14px;
+  min-height: 0;
+}
+
+.series-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.series-row {
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px;
+}
+
+.series-row strong,
+.series-row small {
+  display: block;
+}
+
+.series-row small {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 5px;
+}
+
+.series-value {
+  display: grid;
+  flex-shrink: 0;
+  gap: 5px;
+  justify-items: end;
+}
+
+.series-value span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .leaderboard-panel {
   min-height: 420px;
 }
@@ -685,6 +731,16 @@ select {
   color: var(--amber);
 }
 
+.trend-label.strengthening {
+  background: color-mix(in srgb, var(--green) 16%, var(--panel));
+  color: var(--green);
+}
+
+.trend-label.cooling {
+  background: color-mix(in srgb, var(--red) 16%, var(--panel));
+  color: var(--red);
+}
+
 .history-empty {
   color: var(--muted);
   font-size: 13px;
@@ -857,9 +913,53 @@ select {
 .table-head,
 .table-row {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) 120px 120px 120px;
+  grid-template-columns: 72px minmax(260px, 1fr) 120px 120px 120px;
   gap: 14px;
   padding: 14px 20px;
+}
+
+.listing-thumb {
+  align-items: center;
+  background: var(--card-art-bg);
+  border-radius: 6px;
+  display: flex;
+  height: 66px;
+  justify-content: center;
+  overflow: hidden;
+  width: 66px;
+}
+
+.listing-thumb img {
+  height: 66px;
+  object-fit: contain;
+  width: 66px;
+}
+
+.listing-thumb small {
+  font-size: 11px;
+  margin: 0;
+  text-align: center;
+}
+
+.lifecycle {
+  border-radius: 999px;
+  display: inline-block !important;
+  font-size: 11px;
+  font-weight: 800;
+  margin-top: 7px !important;
+  padding: 4px 7px;
+  text-transform: capitalize;
+}
+
+.lifecycle.new,
+.lifecycle.continuing {
+  background: color-mix(in srgb, var(--green) 16%, var(--panel));
+  color: var(--green);
+}
+
+.lifecycle.repriced {
+  background: color-mix(in srgb, var(--amber) 18%, var(--panel));
+  color: var(--amber);
 }
 
 .table-head {
@@ -900,6 +1000,7 @@ select {
   .search-grid,
   .metrics-grid,
   .overview-metrics,
+  .series-grid,
   .leaderboard-grid,
   .overview-hero,
   .analysis-grid,

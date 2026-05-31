@@ -72,12 +72,23 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(analysis.query)
       });
-      if (!response.ok) throw new Error("Could not save snapshot.");
-      const result = await response.json() as { history: MarketAnalysis["demandHistory"] };
-      setAnalysis({ ...analysis, demandHistory: result.history });
-      setSnapshotMessage("Snapshot saved.");
+      if (!response.ok) throw new Error("Could not save observation.");
+      const result = await response.json() as {
+        history: MarketAnalysis["demandHistory"];
+        activeListings: MarketAnalysis["activeListings"];
+        listingTrend?: MarketAnalysis["listingTrend"];
+        demandInsight: MarketAnalysis["demandInsight"];
+      };
+      setAnalysis({
+        ...analysis,
+        activeListings: result.activeListings,
+        demandHistory: result.history,
+        listingTrend: result.listingTrend,
+        demandInsight: result.demandInsight
+      });
+      setSnapshotMessage("Observation saved.");
     } catch (err) {
-      setSnapshotMessage(err instanceof Error ? err.message : "Could not save snapshot.");
+      setSnapshotMessage(err instanceof Error ? err.message : "Could not save observation.");
     } finally {
       setIsSavingSnapshot(false);
     }
@@ -179,15 +190,15 @@ export default function Home() {
               </div>
             </Panel>
 
-            <Panel title="Demand Analysis" icon={<Activity />}>
+            <Panel title="Observed Market Pressure" icon={<Activity />}>
               <div className="pending-box">
                 <strong>{statusLabel(analysis.demandInsight.signal)}</strong>
-                <p>{statusLabel(analysis.demandInsight.basis)} · {analysis.demandInsight.confidence} confidence · score {analysis.demandInsight.score}/100</p>
+                <p>{statusLabel(analysis.demandInsight.basis)} | {analysis.demandInsight.confidence} confidence | score {analysis.demandInsight.score}/100</p>
               </div>
               <div className="snapshot-actions">
                 <button type="button" className="secondary-button" onClick={saveSnapshot} disabled={isSavingSnapshot}>
                   <Save size={16} />
-                  {isSavingSnapshot ? "Saving" : "Save snapshot"}
+                  {isSavingSnapshot ? "Saving" : "Save observation"}
                 </button>
                 {snapshotMessage ? <span>{snapshotMessage}</span> : null}
               </div>
@@ -215,10 +226,11 @@ export default function Home() {
           <section className="table-section">
             <div className="section-heading">
               <h2>Active Listings</h2>
-              <p>Low-confidence and noisy matches are visible but excluded from calculations.</p>
+              <p>Inspect image and title yourself; excluded matches stay visible but do not influence pressure signals.</p>
             </div>
             <div className="listing-table">
               <div className="table-head">
+                <span>Image</span>
                 <span>Title</span>
                 <span>Price</span>
                 <span>Confidence</span>
@@ -226,12 +238,16 @@ export default function Home() {
               </div>
               {analysis.activeListings.map((listing) => (
                 <div className="table-row" key={listing.id}>
+                  <span className="listing-thumb">
+                    {listing.imageUrl ? <Image src={listing.imageUrl} alt="" width={66} height={66} /> : <small>No image</small>}
+                  </span>
                   <span>
                     <a href={listing.url} target="_blank" rel="noreferrer">
                       {listing.title}
                       <ExternalLink size={14} />
                     </a>
                     <small>{listing.reason}</small>
+                    {listing.lifecycleStatus ? <small className={`lifecycle ${listing.lifecycleStatus}`}>{statusLabel(listing.lifecycleStatus)}</small> : null}
                   </span>
                   <span>{money(listing.price + (listing.shipping ?? 0))}</span>
                   <span className={`confidence ${listing.confidence}`}>{listing.confidence}</span>
@@ -280,11 +296,11 @@ function DemandHistoryPanel({ analysis }: { analysis: MarketAnalysis }) {
   return (
     <div className="demand-history">
       <div className="demand-history-heading">
-        <strong>Demand over time</strong>
+        <strong>Observed pressure over time</strong>
         <span className={`trend-label ${demandHistory.trend.replaceAll(" ", "-")}`}>{demandHistory.trend}</span>
       </div>
       {demandHistory.snapshots.length < 2 ? (
-        <p className="history-empty">Save at least two snapshots to see whether demand is changing.</p>
+        <p className="history-empty">Save observations on at least two different days to calculate directional listing pressure.</p>
       ) : (
         <>
           <div className="trend-metrics">

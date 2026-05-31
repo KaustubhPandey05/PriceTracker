@@ -23,7 +23,7 @@ export async function getProviderHealth(): Promise<ProviderHealth[]> {
     {
       name: "eBay Marketplace Insights",
       status: "unavailable",
-      detail: "Sold-history data is not connected. eBay documents Marketplace Insights as restricted and not open to new users."
+      detail: "Confirmed sold-history data is unavailable. This app uses eBay Browse observations for directional listing trends only."
     }
   ];
 }

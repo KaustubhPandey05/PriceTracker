@@ -1,11 +1,11 @@
 "use client";
 
-import { AlertTriangle, ArrowDownUp, ExternalLink, Gem, LineChart, PackageSearch } from "lucide-react";
+import { Activity, AlertTriangle, ArrowDownUp, ExternalLink, Gem, LineChart, PackageSearch } from "lucide-react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { money } from "@/lib/market/math";
-import type { LeaderboardRow, MarketOverview, NoisyListingRow, OverviewMetric } from "@/types/market";
+import type { LeaderboardRow, MarketOverview, NoisyListingRow, OverviewMetric, TrackedSeriesSummary } from "@/types/market";
 
 export default function OverviewPage() {
   const [overview, setOverview] = useState<MarketOverview | null>(null);
@@ -14,6 +14,7 @@ export default function OverviewPage() {
   useEffect(() => {
     async function loadOverview() {
       try {
+        await fetch("/api/market/captures/daily", { method: "POST" });
         const response = await fetch("/api/market/overview");
         if (!response.ok) throw new Error("Market overview request failed.");
         setOverview(await response.json());
@@ -34,8 +35,8 @@ export default function OverviewPage() {
           <h2>Find cards worth investigating before you search one by one.</h2>
         </div>
         <p>
-          These leaderboards use the current provider layer and mock eBay supply while live eBay approval is pending.
-          Treat them as discovery signals, not final pricing advice.
+          Reference prices are paired with active eBay supply and observed listing movement.
+          Lifecycle trends are directional signals, not confirmed sold-price data.
         </p>
       </section>
 
@@ -46,6 +47,8 @@ export default function OverviewPage() {
               <OverviewMetricCard key={metric.label} metric={metric} />
             ))}
           </section>
+
+          <TrackedSeriesPanel rows={overview.trackedSeries} description={overview.explainers.lifecycle} />
 
           <section className="leaderboard-grid">
             <LeaderboardPanel
@@ -82,6 +85,32 @@ export default function OverviewPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function TrackedSeriesPanel({ rows, description }: { rows: TrackedSeriesSummary[]; description: string }) {
+  return (
+    <section className="panel lifecycle-panel">
+      <div className="panel-title">
+        <Activity />
+        <h2>Observed Market Pressure</h2>
+      </div>
+      <p className="panel-description">{description}</p>
+      <div className="series-grid">
+        {rows.map((row) => (
+          <article className="series-row" key={row.key}>
+            <div>
+              <strong>{row.name}</strong>
+              <small>{row.captures ? `${row.captures} capture${row.captures === 1 ? "" : "s"} stored` : "Awaiting first daily capture"}</small>
+            </div>
+            <div className="series-value">
+              <span>{typeof row.trend.score === "number" ? `${row.trend.score}/100` : "N/A"}</span>
+              <b className={`trend-label ${row.trend.label.toLowerCase().replaceAll(" ", "-")}`}>{row.trend.label}</b>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

@@ -33,6 +33,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem("pokemon-market-theme", theme);
   }, [theme, themeReady]);
 
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      void fetch("/api/market/captures/daily", { method: "POST" });
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
   return (
     <main className="shell">
       <header className="topbar">
