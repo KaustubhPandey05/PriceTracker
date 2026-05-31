@@ -4,6 +4,7 @@ import { getActiveListings } from "@/lib/providers/ebay";
 import { mockCards } from "@/lib/providers/mock";
 import { searchPokemonCards } from "@/lib/providers/pokemonTcg";
 import { getTrackedSeriesSummaries } from "@/lib/observations";
+import { getPresetMarketHistories } from "@/lib/marketHistory";
 
 function referencePrice(card: CardIdentity) {
   return card.prices.find((price) => typeof price.market === "number")?.market
@@ -52,6 +53,7 @@ function includedMedian(listings: MarketListing[]) {
 export async function getMarketOverview(): Promise<MarketOverview> {
   const cards = await overviewCards();
   const trackedSeries = await getTrackedSeriesSummaries();
+  const trackedHistory = await getPresetMarketHistories();
   const listingPairs = await Promise.all(cards.map(async (card) => ({
     card,
     listings: await getActiveListings(card, paramsForCard(card))
@@ -133,6 +135,7 @@ export async function getMarketOverview(): Promise<MarketOverview> {
     tightSupplyCards,
     noisyListings,
     trackedSeries,
+    trackedHistory,
     explainers: {
       referenceValue: "Reference value comes from the current Pokemon TCG provider price when available.",
       valueGap: "Value gap compares median active asking price with the reference value. It is not a buy recommendation.",

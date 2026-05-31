@@ -3,7 +3,9 @@
 import { Activity, BadgeDollarSign, BarChart3, Boxes, ExternalLink, Save, Search, ShieldCheck, TrendingUp } from "lucide-react";
 import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AppShell } from "@/components/AppShell";
+import { MarketHistoryChart } from "@/components/MarketHistoryChart";
 import type { MarketAnalysis, SearchMode } from "@/types/market";
 import { money } from "@/lib/market/math";
 
@@ -78,11 +80,13 @@ export default function Home() {
         activeListings: MarketAnalysis["activeListings"];
         listingTrend?: MarketAnalysis["listingTrend"];
         demandInsight: MarketAnalysis["demandInsight"];
+        marketHistory: MarketAnalysis["marketHistory"];
       };
       setAnalysis({
         ...analysis,
         activeListings: result.activeListings,
         demandHistory: result.history,
+        marketHistory: result.marketHistory,
         listingTrend: result.listingTrend,
         demandInsight: result.demandInsight
       });
@@ -98,22 +102,13 @@ export default function Home() {
     <AppShell>
       <section className="search-band">
         <form onSubmit={onSubmit} className="search-grid">
-          <label>
-            Card name
-            <input value={query.q} onChange={(event) => setQuery({ ...query, q: event.target.value })} placeholder="Charizard" />
-          </label>
-          <label>
-            Set
-            <input value={query.set} onChange={(event) => setQuery({ ...query, set: event.target.value })} placeholder="Base Set" />
-          </label>
+          <AutocompleteInput label="Card name" field="card" value={query.q} onChange={(value) => setQuery({ ...query, q: value })} placeholder="Charizard" />
+          <AutocompleteInput label="Set" field="set" value={query.set ?? ""} onChange={(value) => setQuery({ ...query, set: value })} placeholder="Base Set" />
           <label>
             Number
             <input value={query.number} onChange={(event) => setQuery({ ...query, number: event.target.value })} placeholder="4/102" />
           </label>
-          <label>
-            Variant
-            <input value={query.variant} onChange={(event) => setQuery({ ...query, variant: event.target.value })} placeholder="holo" />
-          </label>
+          <AutocompleteInput label="Variant" field="variant" value={query.variant ?? ""} onChange={(value) => setQuery({ ...query, variant: value })} placeholder="holo" />
           <label>
             Condition
             <input value={query.condition} onChange={(event) => setQuery({ ...query, condition: event.target.value })} placeholder="LP, NM, raw" />
@@ -221,6 +216,10 @@ export default function Home() {
                 ))}
               </div>
             </Panel>
+          </section>
+
+          <section className="panel history-panel">
+            <MarketHistoryChart history={analysis.marketHistory} />
           </section>
 
           <section className="table-section">

@@ -22,6 +22,7 @@ export async function POST(request: Request) {
     activeListings: refreshedAnalysis.activeListings,
     listingTrend: refreshedAnalysis.listingTrend,
     demandInsight: refreshedAnalysis.demandInsight,
+    marketHistory: refreshedAnalysis.marketHistory,
     history: await getDemandHistory(query)
   });
 }

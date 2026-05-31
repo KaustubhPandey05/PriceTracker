@@ -54,7 +54,7 @@ export function indiaDayKey(date = new Date()) {
   }).format(date);
 }
 
-async function readStore(): Promise<ObservationStore> {
+export async function readObservationStore(): Promise<ObservationStore> {
   try {
     const parsed = JSON.parse(await readFile(observationFile, "utf8")) as Partial<ObservationStore>;
     return {
@@ -183,7 +183,7 @@ function updateObservation(
 }
 
 export async function captureListingObservations(analysis: MarketAnalysis, series?: TrackingSeries): Promise<ListingCapture> {
-  const store = await readStore();
+  const store = await readObservationStore();
   const capturedAt = new Date().toISOString();
   const dayKey = indiaDayKey();
   const seriesKey = series?.key ?? queryKey(analysis.query);
@@ -265,6 +265,9 @@ export async function captureListingObservations(analysis: MarketAnalysis, serie
     activeListingCount: analysis.activeListings.length,
     includedListingIds: includedListings.map((observation) => observation.listingId),
     medianActiveAsk: median(activePrices),
+    referencePrice: analysis.referencePrice,
+    referenceSource: analysis.card?.prices.find((price) => typeof price.market === "number")?.source
+      ?? analysis.card?.prices.find((price) => typeof price.mid === "number")?.source,
     newListings,
     unavailableListings,
     priceIncreases,
@@ -284,25 +287,25 @@ export async function captureListingObservations(analysis: MarketAnalysis, serie
 }
 
 export async function getLatestListingTrend(query: CardSearchParams) {
-  const capture = latestCapture((await readStore()).captures, queryKey(query));
+  const capture = latestCapture((await readObservationStore()).captures, queryKey(query));
   return capture?.trend;
 }
 
 export async function decorateListingsWithLifecycle(query: CardSearchParams, listings: MarketListing[]) {
-  const capture = latestCapture((await readStore()).captures, queryKey(query));
+  const capture = latestCapture((await readObservationStore()).captures, queryKey(query));
   if (!capture) return listings;
-  const observations = (await readStore()).observations.filter((item) => item.seriesKey === capture.seriesKey);
+  const observations = (await readObservationStore()).observations.filter((item) => item.seriesKey === capture.seriesKey);
   const statusById = new Map(observations.map((item) => [item.listingId, item.status]));
   return listings.map((listing) => ({ ...listing, lifecycleStatus: statusById.get(listing.id) }));
 }
 
 export async function hasPresetCaptureToday(series: TrackingSeries) {
   const today = indiaDayKey();
-  return (await readStore()).captures.some((capture) => capture.seriesKey === series.key && capture.dayKey === today);
+  return (await readObservationStore()).captures.some((capture) => capture.seriesKey === series.key && capture.dayKey === today);
 }
 
 export async function getTrackedSeriesSummaries(): Promise<TrackedSeriesSummary[]> {
-  const store = await readStore();
+  const store = await readObservationStore();
   return PRESET_TRACKING_SERIES.map((series) => {
     const captures = store.captures.filter((capture) => capture.seriesKey === series.key);
     const latest = latestCapture(captures, series.key);
