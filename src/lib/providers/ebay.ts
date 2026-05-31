@@ -19,7 +19,13 @@ interface EbayItemSummary {
   price?: { value: string; currency: string };
   shippingOptions?: Array<{ shippingCost?: { value: string; currency: string } }>;
   condition?: string;
+  image?: { imageUrl?: string };
 }
+
+export type ListingAvailabilityCheck =
+  | { status: "active"; listing: MarketListing }
+  | { status: "unavailable" }
+  | { status: "unknown" };
 
 async function requestEbayToken(): Promise<EbayTokenResult> {
   if (!env.ebayClientId || !env.ebayClientSecret) return { failure: "missing-config" };
@@ -68,7 +74,7 @@ export async function checkEbayBrowseConnection() {
   if (token.accessToken) {
     return {
       status: "connected" as const,
-      detail: "Credentials are valid for eBay OAuth. Active listing searches can use the Browse API."
+      detail: "Credentials are valid for eBay OAuth. Active listings and observed lifecycle trends can use the Browse API."
     };
   }
 
@@ -128,6 +134,24 @@ function applyOutlierFilter(listings: MarketListing[]) {
   });
 }
 
+function toMarketListing(item: EbayItemSummary, card: CardIdentity | undefined, params: CardSearchParams): MarketListing {
+  const listing = {
+    id: item.itemId,
+    title: item.title,
+    price: Number(item.price?.value ?? 0),
+    shipping: Number(item.shippingOptions?.[0]?.shippingCost?.value ?? 0),
+    currency: item.price?.currency ?? "USD",
+    url: item.itemWebUrl,
+    source: "ebay" as const,
+    condition: item.condition,
+    imageUrl: item.image?.imageUrl
+  };
+  return {
+    ...listing,
+    ...scoreListing(listing, card, params)
+  };
+}
+
 export async function getActiveListings(card: CardIdentity | undefined, params: CardSearchParams): Promise<MarketListing[]> {
   if (isMockMode() || !env.ebayClientId || !env.ebayClientSecret) {
     return mockActiveListings(card, params);
@@ -153,25 +177,35 @@ export async function getActiveListings(card: CardIdentity | undefined, params: 
     if (!response.ok) return fallbackListings(card, params);
     const payload = await response.json() as { itemSummaries?: EbayItemSummary[] };
 
-    const listings = (payload.itemSummaries ?? []).map((item) => {
-      const listing = {
-        id: item.itemId,
-        title: item.title,
-        price: Number(item.price?.value ?? 0),
-        shipping: Number(item.shippingOptions?.[0]?.shippingCost?.value ?? 0),
-        currency: item.price?.currency ?? "USD",
-        url: item.itemWebUrl,
-        source: "ebay" as const,
-        condition: item.condition
-      };
-      return {
-        ...listing,
-        ...scoreListing(listing, card, params)
-      };
-    });
+    const listings = (payload.itemSummaries ?? []).map((item) => toMarketListing(item, card, params));
     return applyOutlierFilter(listings);
   } catch {
     return fallbackListings(card, params);
+  }
+}
+
+export async function checkListingAvailability(id: string, card: CardIdentity | undefined, params: CardSearchParams): Promise<ListingAvailabilityCheck> {
+  if (isMockMode() || !env.ebayClientId || !env.ebayClientSecret) {
+    const listing = mockActiveListings(card, params).find((item) => item.id === id);
+    return listing ? { status: "active", listing } : { status: "unavailable" };
+  }
+
+  const token = await getEbayToken();
+  if (!token) return { status: "unknown" };
+
+  try {
+    const response = await fetch(`https://api.ebay.com/buy/browse/v1/item/${encodeURIComponent(id)}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "X-EBAY-C-MARKETPLACE-ID": env.ebayMarketplaceId
+      },
+      cache: "no-store"
+    });
+    if (response.status === 404) return { status: "unavailable" };
+    if (!response.ok) return { status: "unknown" };
+    return { status: "active", listing: toMarketListing(await response.json() as EbayItemSummary, card, params) };
+  } catch {
+    return { status: "unknown" };
   }
 }
 

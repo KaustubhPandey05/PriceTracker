@@ -3,6 +3,7 @@ import { includedPrices, median, money } from "@/lib/market/math";
 import { getActiveListings } from "@/lib/providers/ebay";
 import { mockCards } from "@/lib/providers/mock";
 import { searchPokemonCards } from "@/lib/providers/pokemonTcg";
+import { getTrackedSeriesSummaries } from "@/lib/observations";
 
 function referencePrice(card: CardIdentity) {
   return card.prices.find((price) => typeof price.market === "number")?.market
@@ -50,6 +51,7 @@ function includedMedian(listings: MarketListing[]) {
 
 export async function getMarketOverview(): Promise<MarketOverview> {
   const cards = await overviewCards();
+  const trackedSeries = await getTrackedSeriesSummaries();
   const listingPairs = await Promise.all(cards.map(async (card) => ({
     card,
     listings: await getActiveListings(card, paramsForCard(card))
@@ -121,20 +123,22 @@ export async function getMarketOverview(): Promise<MarketOverview> {
         detail: "Active listings that passed confidence filters."
       },
       {
-        label: "Data confidence",
-        value: "Snapshot",
-        detail: "No historical database yet; leaderboards use current/mock data."
+        label: "Tracked series",
+        value: String(trackedSeries.length),
+        detail: "Daily raw near-mint and PSA 9 observation series."
       }
     ],
     highestValueCards,
     valueGapCards,
     tightSupplyCards,
     noisyListings,
+    trackedSeries,
     explainers: {
       referenceValue: "Reference value comes from the current Pokemon TCG provider price when available.",
       valueGap: "Value gap compares median active asking price with the reference value. It is not a buy recommendation.",
       tightSupply: "Tight supply counts active listings that passed confidence filters. Lower counts can mean scarcity or limited data.",
-      noisyListings: "Noisy listings were found but excluded from calculations because the title looked mismatched or low confidence."
+      noisyListings: "Noisy listings were found but excluded from calculations because the title looked mismatched or low confidence.",
+      lifecycle: "eBay listings are observed over time for directional pressure only. An unavailable listing is not a confirmed sale."
     }
   };
 }

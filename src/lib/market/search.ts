@@ -71,6 +71,20 @@ function findVariantConflicts(title: string, query: CardSearchParams) {
   return [...new Set(conflicts)];
 }
 
+function findConditionConflict(title: string, query: CardSearchParams) {
+  const requestedCondition = normalize(query.condition);
+  if (!/\b(near mint|nm)\b/.test(requestedCondition)) return undefined;
+
+  const nonNearMintTerms = [
+    { pattern: /\b(lp|lightly played)\b/, label: "Lightly Played" },
+    { pattern: /\b(mp|moderately played)\b/, label: "Moderately Played" },
+    { pattern: /\b(hp|heavily played)\b/, label: "Heavily Played" },
+    { pattern: /\b(dmg|damaged|poor)\b/, label: "Damaged" },
+    { pattern: /\bplayed\b/, label: "Played" }
+  ];
+  return nonNearMintTerms.find((item) => item.pattern.test(title))?.label;
+}
+
 export function scoreListing(listing: Omit<MarketListing, "confidence" | "includedInAnalysis" | "reason">, card: CardIdentity | undefined, query: CardSearchParams): Pick<MarketListing, "confidence" | "includedInAnalysis" | "reason"> {
   const title = normalize(listing.title);
   const reasons: string[] = [];
@@ -86,11 +100,28 @@ export function scoreListing(listing: Omit<MarketListing, "confidence" | "includ
 
   const requestedGrade = normalize(query.grade);
   const listingGrade = normalize(extractGrade(listing.title) ?? listing.grade);
+  const requestedRaw = /\b(raw|ungraded)\b/.test(normalize(`${query.variant ?? ""} ${query.condition ?? ""}`));
+  if (requestedRaw && listingGrade) {
+    return {
+      confidence: "low",
+      includedInAnalysis: false,
+      reason: `Excluded: requested raw card, listing appears to be ${listingGrade.toUpperCase()}`
+    };
+  }
   if (requestedGrade && listingGrade && requestedGrade !== listingGrade) {
     return {
       confidence: "low",
       includedInAnalysis: false,
       reason: `Excluded: requested ${query.grade}, listing appears to be ${listingGrade.toUpperCase()}`
+    };
+  }
+
+  const conditionConflict = findConditionConflict(title, query);
+  if (conditionConflict) {
+    return {
+      confidence: "low",
+      includedInAnalysis: false,
+      reason: `Excluded: requested near mint proxy, listing states ${conditionConflict}`
     };
   }
 
@@ -128,7 +159,7 @@ export function scoreListing(listing: Omit<MarketListing, "confidence" | "includ
     score += 2;
     reasons.push("grade match");
   }
-  if (query.condition && includesToken(title, query.condition)) {
+  if (query.condition && includesToken(normalize(`${listing.title} ${listing.condition ?? ""}`), query.condition)) {
     score += 1;
     reasons.push("condition match");
   }
@@ -148,7 +179,16 @@ export function scoreListing(listing: Omit<MarketListing, "confidence" | "includ
 }
 
 export function makeSearchQuery(params: CardSearchParams) {
-  return [params.q, params.set, params.number, params.variant, params.grade, params.condition]
+  const requestedRaw = /\b(raw|ungraded)\b/.test(normalize(`${params.variant ?? ""} ${params.condition ?? ""}`));
+  const requestedNearMint = /\b(near mint|nm)\b/.test(normalize(params.condition));
+  return [
+    params.q,
+    params.set,
+    params.number,
+    requestedRaw ? undefined : params.variant,
+    params.grade,
+    requestedNearMint ? undefined : params.condition
+  ]
     .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")

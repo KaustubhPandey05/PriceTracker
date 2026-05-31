@@ -5,6 +5,6 @@ export async function GET() {
   return NextResponse.json({
     data: await getSoldListings(),
     status: "unavailable",
-    message: "Sold-history data is not connected. eBay Marketplace Insights is restricted and not open to new users."
+    message: "Confirmed sold-history data is unavailable. Listing lifecycle captures are used only for directional market pressure."
   });
 }

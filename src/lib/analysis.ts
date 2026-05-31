@@ -1,10 +1,11 @@
-import type { CardIdentity, CardSearchParams, DemandInsight, MarketAnalysis, MarketListing } from "@/types/market";
+import type { CardIdentity, CardSearchParams, DemandInsight, ListingTrendSignal, MarketAnalysis, MarketListing } from "@/types/market";
 import { includedPrices, median } from "@/lib/market/math";
 import { getActiveListings, getSoldListings } from "@/lib/providers/ebay";
 import { getProviderHealth } from "@/lib/providers/health";
 import { findMockCard } from "@/lib/providers/mock";
 import { searchPokemonCards } from "@/lib/providers/pokemonTcg";
 import { getDemandHistory } from "@/lib/snapshots";
+import { decorateListingsWithLifecycle, getLatestListingTrend } from "@/lib/observations";
 
 function getReferencePrice(card?: CardIdentity) {
   return card?.prices.find((price) => typeof price.market === "number")?.market
@@ -53,7 +54,7 @@ function clampScore(value: number) {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function buildDemandInsight(prices: number[], includedCount: number, activeCount: number, soldListings: MarketListing[]): DemandInsight {
+function buildDemandInsight(prices: number[], includedCount: number, activeCount: number, soldListings: MarketListing[], listingTrend?: ListingTrendSignal): DemandInsight {
   const sold7Listings = soldWithinDays(soldListings, 7);
   const sold30Listings = soldWithinDays(soldListings, 30);
   const sold90Listings = soldWithinDays(soldListings, 90);
@@ -95,6 +96,18 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
     };
   }
 
+  if (typeof listingTrend?.score === "number") {
+    const signal = listingTrend.score >= 60 ? "strong" : listingTrend.score <= 40 ? "weak" : "steady";
+    return {
+      signal,
+      confidence: listingTrend.confidence,
+      score: listingTrend.score,
+      basis: "listing-lifecycle",
+      soldCounts,
+      factors: listingTrend.factors
+    };
+  }
+
   if (!activeCount || !includedCount) {
     return {
       signal: "unknown",
@@ -104,7 +117,7 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
       soldCounts,
       factors: [
         "No usable active listings passed confidence filters.",
-        "Sold-history data is not connected yet."
+        "Confirmed sold-history data is unavailable; repeated captures can establish an observed listing trend."
       ]
     };
   }
@@ -114,7 +127,7 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
   let score = 45;
   const factors: string[] = [
     `${includedCount} of ${activeCount} active listings passed confidence filters.`,
-    "Sold-history data is not connected yet, so this is not a true sell-through demand score."
+    "No lifecycle trend is available yet, so this is an active-listing proxy rather than confirmed demand."
   ];
 
   if (includedCount >= 8) {
@@ -161,7 +174,7 @@ function buildDemandInsight(prices: number[], includedCount: number, activeCount
 export async function analyzeMarket(params: CardSearchParams): Promise<MarketAnalysis> {
   const cards = await searchPokemonCards(params);
   const card = cards[0] ?? findMockCard(params);
-  const activeListings = await getActiveListings(card, params);
+  const activeListings = await decorateListingsWithLifecycle(params, await getActiveListings(card, params));
   const soldListings = await getSoldListings();
   const prices = includedPrices(activeListings);
   const medianAsk = median(prices);
@@ -171,7 +184,8 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
   const referenceDelta = referencePrice && medianAsk ? medianAsk - referencePrice : undefined;
   const includedListingCount = activeListings.filter((listing) => listing.includedInAnalysis).length;
   const supplySignal = includedListingCount === 0 ? "unknown" : includedListingCount <= 2 ? "low" : includedListingCount >= 8 ? "high" : "normal";
-  const demandInsight = buildDemandInsight(prices, includedListingCount, activeListings.length, soldListings);
+  const listingTrend = await getLatestListingTrend(params);
+  const demandInsight = buildDemandInsight(prices, includedListingCount, activeListings.length, soldListings, listingTrend);
   const demandHistory = await getDemandHistory(params);
 
   return {
@@ -190,11 +204,15 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
       referenceDelta,
       supplySignal,
       demandSignal: demandInsight.signal,
-      trend: soldListings.length ? "stable" : "insufficient data",
+      trend: listingTrend?.label === "Strengthening" ? "rising"
+        : listingTrend?.label === "Cooling" ? "falling"
+          : listingTrend?.label === "Stable" ? "stable"
+            : "insufficient data",
       confidence: demandInsight.confidence
     },
     demandInsight,
     demandHistory,
+    listingTrend,
     gradeBreakdown: getGradeBreakdown(activeListings.filter((listing) => listing.includedInAnalysis)),
     summary: buildSummary(referencePrice, medianAsk, includedListingCount, activeListings.length, demandInsight)
   };
