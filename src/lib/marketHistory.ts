@@ -12,8 +12,17 @@ function cleanPoint(point: MarketHistoryPoint): MarketHistoryPoint {
     label: point.label,
     medianActiveAsk: point.medianActiveAsk,
     referencePrice: point.referencePrice,
-    pressureScore: point.pressureScore
+    pressureScore: point.pressureScore,
+    demandPressureProxy: point.demandPressureProxy,
+    supplySaturationShift: point.supplySaturationShift,
+    activeSupply: point.activeSupply,
+    unavailableListings: point.unavailableListings
   };
+}
+
+function demandPressureFromCapture(activeSupply: number, unavailableListings: number) {
+  const cohort = activeSupply + unavailableListings;
+  return cohort > 0 ? unavailableListings / cohort : undefined;
 }
 
 export async function getMarketHistoryForKey(key: string): Promise<MarketHistorySeries> {
@@ -28,17 +37,27 @@ export async function getMarketHistoryForKey(key: string): Promise<MarketHistory
       label: pointLabel(snapshot.capturedAt),
       medianActiveAsk: snapshot.medianActiveAsk,
       referencePrice: snapshot.referencePrice,
-      pressureScore: snapshot.demandBasis === "listing-lifecycle" ? snapshot.demandScore : undefined
+      pressureScore: snapshot.demandBasis === "listing-lifecycle" ? snapshot.demandScore : undefined,
+      activeSupply: snapshot.includedListingCount
     }));
   const capturePoints: MarketHistoryPoint[] = observationStore.captures
     .filter((capture) => capture.seriesKey === key)
-    .map((capture) => cleanPoint({
-      capturedAt: capture.capturedAt,
-      label: pointLabel(capture.capturedAt),
-      medianActiveAsk: capture.medianActiveAsk,
-      referencePrice: capture.referencePrice,
-      pressureScore: capture.trend.score
-    }));
+    .map((capture) => {
+      const activeSupply = capture.includedListingIds.length;
+      return cleanPoint({
+        capturedAt: capture.capturedAt,
+        label: pointLabel(capture.capturedAt),
+        medianActiveAsk: capture.medianActiveAsk,
+        referencePrice: capture.referencePrice,
+        pressureScore: capture.trend.score,
+        demandPressureProxy: capture.trend.demandPressureProxy
+          ?? capture.demandPressureProxy
+          ?? demandPressureFromCapture(activeSupply, capture.unavailableListings),
+        supplySaturationShift: capture.trend.supplySaturationShift ?? capture.supplySaturationShift,
+        activeSupply,
+        unavailableListings: capture.unavailableListings
+      });
+    });
   const points = [...snapshotPoints, ...capturePoints]
     .sort((a, b) => a.capturedAt.localeCompare(b.capturedAt));
 

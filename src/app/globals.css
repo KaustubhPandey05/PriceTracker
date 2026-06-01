@@ -12,6 +12,7 @@
   --green: #1f8f63;
   --blue: #2765c7;
   --amber: #b97b18;
+  --purple: #7c4dcc;
   --shadow: 0 18px 50px rgba(27, 39, 61, 0.08);
 }
 
@@ -29,6 +30,7 @@
   --green: #58d99c;
   --blue: #75a7ff;
   --amber: #f2bd5b;
+  --purple: #b794ff;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
 }
 
@@ -46,6 +48,7 @@
   --green: #42dba1;
   --blue: #67b7ff;
   --amber: #ffd166;
+  --purple: #b794ff;
   --shadow: 0 20px 60px rgba(0, 0, 0, 0.34);
 }
 
@@ -63,6 +66,7 @@
   --green: #4df5b5;
   --blue: #b68cff;
   --amber: #ffe066;
+  --purple: #d95cff;
   --shadow: 0 22px 70px rgba(68, 28, 107, 0.28);
 }
 
@@ -697,6 +701,14 @@ select {
   justify-content: space-between;
 }
 
+.history-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .history-chart-head strong,
 .history-chart-head small {
   display: block;
@@ -731,6 +743,10 @@ select {
 .segmented-control button.active {
   background: var(--panel);
   color: var(--ink);
+}
+
+.range-control button {
+  min-width: 42px;
 }
 
 .history-chart svg {
@@ -771,6 +787,14 @@ select {
   stroke: var(--amber);
 }
 
+.demand-proxy-line {
+  stroke: var(--red);
+}
+
+.saturation-line {
+  stroke: var(--purple);
+}
+
 .history-legend {
   align-items: center;
   color: var(--muted);
@@ -806,9 +830,52 @@ select {
   background: var(--amber);
 }
 
+.demand-proxy-dot {
+  background: var(--red);
+}
+
+.saturation-dot {
+  background: var(--purple);
+}
+
 .history-legend b {
   color: var(--ink);
+  margin-left: 0;
+}
+
+.history-legend b:first-of-type {
   margin-left: auto;
+}
+
+.history-stat-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.history-stat-grid span {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.history-stat-grid strong,
+.history-stat-grid small {
+  display: block;
+}
+
+.history-stat-grid strong {
+  color: var(--ink);
+  font-size: 16px;
+}
+
+.history-stat-grid small {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-top: 3px;
 }
 
 .preset-history-grid {
@@ -1209,6 +1276,7 @@ select {
   .metrics-grid,
   .overview-metrics,
   .series-grid,
+  .history-stat-grid,
   .preset-history-grid,
   .leaderboard-grid,
   .overview-hero,
@@ -1219,6 +1287,20 @@ select {
 
   .header-actions {
     justify-content: flex-start;
+  }
+
+  .history-chart-head,
+  .history-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .history-controls .segmented-control {
+    width: 100%;
+  }
+
+  .history-controls .segmented-control button {
+    flex: 1;
   }
 
   .app-nav {

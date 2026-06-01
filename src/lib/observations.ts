@@ -92,11 +92,50 @@ function notEnoughHistory(): ListingTrendSignal {
   };
 }
 
-function calculateTrend(current: ListingCapture, prior: ListingCapture | undefined, dailyCaptureCount: number): ListingTrendSignal {
+function average(values: number[]) {
+  if (!values.length) return undefined;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function unsoldShare(capture: ListingCapture) {
+  const active = capture.includedListingIds.length;
+  const cohort = active + capture.unavailableListings;
+  return cohort > 0 ? active / cohort : undefined;
+}
+
+function calculateSaturationShift(current: ListingCapture, captures: ListingCapture[]) {
+  const latestTime = new Date(current.capturedAt).getTime();
+  const day = 24 * 60 * 60 * 1000;
+  const datedCaptures = [...captures, current].filter((capture) => capture.seriesKey === current.seriesKey);
+  const inWindow = (days: number) => datedCaptures.filter((capture) => {
+    const capturedTime = new Date(capture.capturedAt).getTime();
+    return latestTime - capturedTime <= days * day;
+  });
+  const avgUnsoldShare = (items: ListingCapture[]) => average(
+    items.map(unsoldShare).filter((value): value is number => typeof value === "number")
+  );
+  const last7 = inWindow(7);
+  const last30 = inWindow(30);
+  if (last7.length < 2 || last30.length < 4) return undefined;
+  const sevenDayShare = avgUnsoldShare(last7);
+  const thirtyDayShare = avgUnsoldShare(last30);
+  if (!sevenDayShare || !thirtyDayShare) return undefined;
+  return sevenDayShare / thirtyDayShare;
+}
+
+function calculateTrend(
+  current: ListingCapture,
+  prior: ListingCapture | undefined,
+  dailyCaptureCount: number,
+  seriesCaptures: ListingCapture[]
+): ListingTrendSignal {
   if (!prior || prior.dayKey === current.dayKey || !prior.includedListingIds.length) return notEnoughHistory();
 
   const priorCount = prior.includedListingIds.length;
   const disappearanceRate = current.unavailableListings / priorCount;
+  const demandPressureProxy = current.demandPressureProxy ?? 0;
+  const supplySaturationShift = current.supplySaturationShift ?? calculateSaturationShift(current, seriesCaptures);
+  const saturationSignal = typeof supplySaturationShift === "number" ? cap(1 - supplySaturationShift, -1, 1) : 0;
   const newSupplyRate = current.newListings / priorCount;
   const netFlow = cap(disappearanceRate - newSupplyRate, -1, 1);
   const medianAskChange = prior.medianActiveAsk && current.medianActiveAsk
@@ -106,14 +145,19 @@ function calculateTrend(current: ListingCapture, prior: ListingCapture | undefin
   const continuingCount = Math.max(1, current.includedListingIds.length - current.newListings);
   const repricingDirection = cap((current.priceIncreases - current.priceCuts) / continuingCount, -1, 1);
   const directionalIndex = cap(
-    0.4 * cap(disappearanceRate, 0, 1)
-    + 0.3 * netFlow
+    0.35 * cap(demandPressureProxy / 0.35, 0, 1)
+    + 0.25 * netFlow
     + 0.2 * askMovement
     + 0.1 * repricingDirection,
     -1,
     1
+  ) + cap(0.1 * saturationSignal, -0.1, 0.1);
+  const normalizedIndex = cap(
+    directionalIndex,
+    -1,
+    1
   );
-  const score = Math.round(50 + directionalIndex * 50);
+  const score = Math.round(50 + normalizedIndex * 50);
   const label = score >= 60 ? "Strengthening" : score <= 40 ? "Cooling" : "Stable";
 
   return {
@@ -126,8 +170,13 @@ function calculateTrend(current: ListingCapture, prior: ListingCapture | undefin
     priceCuts: current.priceCuts,
     activeSupplyChange: current.includedListingIds.length - prior.includedListingIds.length,
     medianAskChange,
+    demandPressureProxy,
+    supplySaturationShift,
     factors: [
-      `${current.unavailableListings} previously tracked listings became unavailable; this is an absorption/disappearance proxy, not confirmed sales.`,
+      `Demand pressure proxy is ${(demandPressureProxy * 100).toFixed(1)}%: unavailable previously tracked listings divided by the current active-plus-unavailable observation cohort. This is not confirmed sold data.`,
+      typeof supplySaturationShift === "number"
+        ? `Supply saturation shift is ${supplySaturationShift.toFixed(2)}x: 7-day unsold share compared with the 30-day baseline. Values above 1.00 mean the unsold share is rising.`
+        : "Supply saturation shift needs more 7-day and 30-day capture history before it can be calculated.",
       `${current.newListings} new included listings appeared and active tracked supply changed by ${current.includedListingIds.length - prior.includedListingIds.length}.`,
       typeof medianAskChange === "number"
         ? `Median active ask moved ${(medianAskChange * 100).toFixed(1)}% from the prior daily capture.`
@@ -272,10 +321,18 @@ export async function captureListingObservations(analysis: MarketAnalysis, serie
     unavailableListings,
     priceIncreases,
     priceCuts,
+    demandPressureProxy: undefined,
+    unsoldShare: undefined,
+    supplySaturationShift: undefined,
     trend: notEnoughHistory()
   };
+  const activeIncludedCount = capture.includedListingIds.length;
+  const observedCohortCount = activeIncludedCount + unavailableListings;
+  capture.demandPressureProxy = observedCohortCount > 0 ? unavailableListings / observedCohortCount : undefined;
+  capture.unsoldShare = unsoldShare(capture);
+  capture.supplySaturationShift = calculateSaturationShift(capture, store.captures);
   const priorDailyCaptures = store.captures.filter((item) => item.seriesKey === seriesKey && item.dayKey !== dayKey).length;
-  capture.trend = calculateTrend(capture, previous, priorDailyCaptures + 1);
+  capture.trend = calculateTrend(capture, previous, priorDailyCaptures + 1, store.captures);
 
   store.observations = [
     ...store.observations.filter((observation) => observation.seriesKey !== seriesKey),

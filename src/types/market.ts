@@ -113,6 +113,8 @@ export interface ListingTrendSignal {
   priceCuts: number;
   activeSupplyChange: number;
   medianAskChange?: number;
+  demandPressureProxy?: number;
+  supplySaturationShift?: number;
 }
 
 export interface TrackingSeries {
@@ -145,6 +147,9 @@ export interface ListingCapture {
   unavailableListings: number;
   priceIncreases: number;
   priceCuts: number;
+  demandPressureProxy?: number;
+  unsoldShare?: number;
+  supplySaturationShift?: number;
   trend: ListingTrendSignal;
 }
 
@@ -193,6 +198,10 @@ export interface MarketHistoryPoint {
   medianActiveAsk?: number;
   referencePrice?: number;
   pressureScore?: number;
+  demandPressureProxy?: number;
+  supplySaturationShift?: number;
+  activeSupply?: number;
+  unavailableListings?: number;
 }
 
 export interface MarketHistorySeries {
