@@ -21,7 +21,7 @@ export function queryKey(query: CardSearchParams) {
   ].map(normalize).join("|");
 }
 
-async function readAllSnapshots() {
+export async function readAllSnapshots() {
   try {
     const content = await readFile(snapshotFile, "utf8");
     const snapshots = JSON.parse(content) as DemandSnapshot[];
@@ -76,6 +76,8 @@ export async function getDemandHistory(query: CardSearchParams) {
 }
 
 export function snapshotFromAnalysis(analysis: MarketAnalysis): DemandSnapshot {
+  const referenceSource = analysis.card?.prices.find((price) => typeof price.market === "number")
+    ?? analysis.card?.prices.find((price) => typeof price.mid === "number");
   return {
     id: crypto.randomUUID(),
     queryKey: queryKey(analysis.query),
@@ -86,6 +88,8 @@ export function snapshotFromAnalysis(analysis: MarketAnalysis): DemandSnapshot {
     activeListingCount: analysis.metrics.activeListingCount,
     includedListingCount: analysis.metrics.includedListingCount,
     medianActiveAsk: analysis.metrics.medianAsk,
+    referencePrice: analysis.referencePrice,
+    referenceSource: referenceSource?.source,
     sold7: analysis.demandInsight.soldCounts.sold7,
     sold30: analysis.demandInsight.soldCounts.sold30,
     sold90: analysis.demandInsight.soldCounts.sold90,

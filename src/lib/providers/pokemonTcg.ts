@@ -31,6 +31,12 @@ interface PokemonTcgCard {
   };
 }
 
+interface PokemonTcgSet {
+  id: string;
+  name: string;
+  series?: string;
+}
+
 function mapCard(card: PokemonTcgCard): CardIdentity {
   const prices: CardPrice[] = [];
   Object.entries(card.tcgplayer?.prices ?? {}).forEach(([variant, price]) => {
@@ -100,5 +106,56 @@ export async function searchPokemonCards(params: CardSearchParams): Promise<Card
     return (payload.data ?? []).map(mapCard);
   } catch {
     return mockCards;
+  }
+}
+
+export async function searchPokemonCardNames(prefix: string): Promise<string[]> {
+  const query = prefix.trim();
+  if (!query) return [];
+  if (isMockMode()) {
+    return [...new Set(searchMockCards({ q: query, mode: "loose" }).map((card) => card.name))];
+  }
+
+  const url = new URL("https://api.pokemontcg.io/v2/cards");
+  url.searchParams.set("q", `name:"${query.replace(/"/g, "")}*"`);
+  url.searchParams.set("pageSize", "20");
+  url.searchParams.set("select", "name");
+
+  try {
+    const response = await fetch(url, {
+      headers: env.pokemonTcgApiKey ? { "X-Api-Key": env.pokemonTcgApiKey } : {},
+      next: { revalidate: 3600 }
+    });
+    if (!response.ok) return [];
+    const payload = await response.json() as { data?: Array<{ name: string }> };
+    return [...new Set((payload.data ?? []).map((card) => card.name))];
+  } catch {
+    return [];
+  }
+}
+
+export async function searchPokemonSetNames(prefix: string): Promise<string[]> {
+  const query = prefix.trim().toLowerCase();
+  if (isMockMode()) {
+    return [...new Set(mockCards.map((card) => card.setName))]
+      .filter((setName) => setName.toLowerCase().includes(query));
+  }
+
+  const url = new URL("https://api.pokemontcg.io/v2/sets");
+  url.searchParams.set("pageSize", "250");
+  url.searchParams.set("select", "id,name,series");
+
+  try {
+    const response = await fetch(url, {
+      headers: env.pokemonTcgApiKey ? { "X-Api-Key": env.pokemonTcgApiKey } : {},
+      next: { revalidate: 86400 }
+    });
+    if (!response.ok) return [];
+    const payload = await response.json() as { data?: PokemonTcgSet[] };
+    return [...new Set((payload.data ?? [])
+      .map((set) => set.name)
+      .filter((name) => name.toLowerCase().includes(query)))];
+  } catch {
+    return [];
   }
 }

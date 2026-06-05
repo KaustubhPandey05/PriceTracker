@@ -6,6 +6,7 @@ import { findMockCard } from "@/lib/providers/mock";
 import { searchPokemonCards } from "@/lib/providers/pokemonTcg";
 import { getDemandHistory } from "@/lib/snapshots";
 import { decorateListingsWithLifecycle, getLatestListingTrend } from "@/lib/observations";
+import { getMarketHistory } from "@/lib/marketHistory";
 
 function getReferencePrice(card?: CardIdentity) {
   return card?.prices.find((price) => typeof price.market === "number")?.market
@@ -187,6 +188,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
   const listingTrend = await getLatestListingTrend(params);
   const demandInsight = buildDemandInsight(prices, includedListingCount, activeListings.length, soldListings, listingTrend);
   const demandHistory = await getDemandHistory(params);
+  const marketHistory = await getMarketHistory(params);
 
   return {
     card,
@@ -212,6 +214,7 @@ export async function analyzeMarket(params: CardSearchParams): Promise<MarketAna
     },
     demandInsight,
     demandHistory,
+    marketHistory,
     listingTrend,
     gradeBreakdown: getGradeBreakdown(activeListings.filter((listing) => listing.includedInAnalysis)),
     summary: buildSummary(referencePrice, medianAsk, includedListingCount, activeListings.length, demandInsight)

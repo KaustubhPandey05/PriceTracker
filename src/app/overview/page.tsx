@@ -4,6 +4,7 @@ import { Activity, AlertTriangle, ArrowDownUp, ExternalLink, Gem, LineChart, Pac
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { MarketHistoryChart } from "@/components/MarketHistoryChart";
 import { money } from "@/lib/market/math";
 import type { LeaderboardRow, MarketOverview, NoisyListingRow, OverviewMetric, TrackedSeriesSummary } from "@/types/market";
 
@@ -49,6 +50,7 @@ export default function OverviewPage() {
           </section>
 
           <TrackedSeriesPanel rows={overview.trackedSeries} description={overview.explainers.lifecycle} />
+          <PresetHistoryPanel overview={overview} />
 
           <section className="leaderboard-grid">
             <LeaderboardPanel
@@ -85,6 +87,30 @@ export default function OverviewPage() {
         </section>
       )}
     </AppShell>
+  );
+}
+
+function PresetHistoryPanel({ overview }: { overview: MarketOverview }) {
+  const histories = overview.trackedHistory.filter((item) => item.history.points.length);
+  return (
+    <section className="panel preset-history-panel">
+      <div className="panel-title">
+        <LineChart />
+        <h2>Preset History</h2>
+      </div>
+      {histories.length ? (
+        <div className="preset-history-grid">
+          {histories.slice(0, 4).map((item) => (
+            <article key={item.series.key} className="preset-history-card">
+              <strong>{item.series.name}</strong>
+              <MarketHistoryChart history={item.history} compact />
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="history-empty">Daily captures will appear here after the first preset observation run.</p>
+      )}
+    </section>
   );
 }
 

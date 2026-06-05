@@ -113,6 +113,8 @@ export interface ListingTrendSignal {
   priceCuts: number;
   activeSupplyChange: number;
   medianAskChange?: number;
+  demandPressureProxy?: number;
+  supplySaturationShift?: number;
 }
 
 export interface TrackingSeries {
@@ -120,6 +122,12 @@ export interface TrackingSeries {
   name: string;
   kind: TrackingSeriesKind;
   query: CardSearchParams;
+}
+
+export interface SearchSuggestion {
+  value: string;
+  label?: string;
+  source: "pokemon-tcg" | "recent-search" | "variant";
 }
 
 export interface ListingCapture {
@@ -133,10 +141,15 @@ export interface ListingCapture {
   activeListingCount: number;
   includedListingIds: string[];
   medianActiveAsk?: number;
+  referencePrice?: number;
+  referenceSource?: string;
   newListings: number;
   unavailableListings: number;
   priceIncreases: number;
   priceCuts: number;
+  demandPressureProxy?: number;
+  unsoldShare?: number;
+  supplySaturationShift?: number;
   trend: ListingTrendSignal;
 }
 
@@ -160,6 +173,8 @@ export interface DemandSnapshot {
   activeListingCount: number;
   includedListingCount: number;
   medianActiveAsk?: number;
+  referencePrice?: number;
+  referenceSource?: string;
   sold7: number;
   sold30: number;
   sold90: number;
@@ -175,6 +190,24 @@ export interface DemandHistory {
   changeFromPrevious?: number;
   change7?: number;
   change30?: number;
+}
+
+export interface MarketHistoryPoint {
+  capturedAt: string;
+  label: string;
+  medianActiveAsk?: number;
+  referencePrice?: number;
+  pressureScore?: number;
+  demandPressureProxy?: number;
+  supplySaturationShift?: number;
+  activeSupply?: number;
+  unavailableListings?: number;
+}
+
+export interface MarketHistorySeries {
+  queryKey: string;
+  points: MarketHistoryPoint[];
+  latest?: MarketHistoryPoint;
 }
 
 export interface MarketAnalysis {
@@ -198,6 +231,7 @@ export interface MarketAnalysis {
   };
   demandInsight: DemandInsight;
   demandHistory: DemandHistory;
+  marketHistory: MarketHistorySeries;
   listingTrend?: ListingTrendSignal;
   gradeBreakdown: Record<string, number>;
   summary: string[];
@@ -237,5 +271,6 @@ export interface MarketOverview {
   tightSupplyCards: LeaderboardRow[];
   noisyListings: NoisyListingRow[];
   trackedSeries: TrackedSeriesSummary[];
+  trackedHistory: Array<{ series: TrackingSeries; history: MarketHistorySeries }>;
   explainers: Record<string, string>;
 }
