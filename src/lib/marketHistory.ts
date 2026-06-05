@@ -73,7 +73,13 @@ export async function getMarketHistoryForKey(key: string): Promise<MarketHistory
 }
 
 export async function getMarketHistory(query: CardSearchParams) {
-  return getMarketHistoryForKey(queryKey(query));
+  const exact = await getMarketHistoryForKey(queryKey(query));
+  const exactDays = new Set(exact.points.map((point) => point.capturedAt.slice(0, 10))).size;
+  if (exactDays >= 2 || !query.variant || !query.grade) return exact;
+
+  const normalized = await getMarketHistoryForKey(queryKey({ ...query, variant: "" }));
+  const normalizedDays = new Set(normalized.points.map((point) => point.capturedAt.slice(0, 10))).size;
+  return normalizedDays > exactDays ? normalized : exact;
 }
 
 export async function getPresetMarketHistories() {

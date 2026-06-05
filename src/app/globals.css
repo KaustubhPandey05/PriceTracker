@@ -758,6 +758,19 @@ select {
   padding: 10px 12px 8px;
 }
 
+.unified-chart-frame {
+  gap: 8px;
+}
+
+.axis-row {
+  align-items: center;
+  color: var(--muted);
+  display: flex;
+  font-size: 11px;
+  font-weight: 900;
+  justify-content: space-between;
+}
+
 .chart-frame svg {
   background: var(--panel-soft);
   display: block;
@@ -772,6 +785,12 @@ select {
 .chart-frame .grid-line {
   stroke: var(--line);
   stroke-width: 1;
+}
+
+.baseline-line {
+  stroke: var(--muted);
+  stroke-dasharray: 5 5;
+  stroke-width: 1.5;
 }
 
 .chart-frame path {
@@ -923,6 +942,24 @@ select {
   gap: 6px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   min-width: 0;
+}
+
+.unified-history-legend {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.unified-history-legend span {
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 9px 10px;
+}
+
+.unified-history-legend small {
+  color: var(--muted);
+  font-size: 11px;
+  grid-column: 2 / -1;
 }
 
 .history-legend i {
@@ -1420,9 +1457,11 @@ select {
   }
 
   .history-chart-head,
-  .history-controls {
+  .history-controls,
+  .unified-history-legend {
     align-items: stretch;
     flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .history-controls .segmented-control {
