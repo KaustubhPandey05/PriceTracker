@@ -687,7 +687,7 @@ select {
 
 .history-chart {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .history-chart.compact {
@@ -749,33 +749,107 @@ select {
   min-width: 42px;
 }
 
-.history-chart svg {
+.chart-frame {
   background: var(--panel-soft);
   border: 1px solid var(--line);
   border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px 8px;
+}
+
+.chart-frame svg {
+  background: var(--panel-soft);
   display: block;
-  height: 180px;
-  padding: 12px;
+  height: 170px;
   width: 100%;
 }
 
-.history-chart.compact svg {
-  height: 112px;
+.history-chart.compact .chart-frame svg {
+  height: 90px;
 }
 
-.history-chart line {
+.chart-frame .grid-line {
   stroke: var(--line);
-  stroke-width: 2;
+  stroke-width: 1;
 }
 
-.history-chart path {
+.chart-frame path {
   fill: none;
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 4;
 }
 
+.chart-frame circle {
+  fill: var(--panel);
+  stroke-width: 3;
+}
+
+.axis-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.axis-label.bottom {
+  align-self: end;
+}
+
+.history-card-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.history-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+}
+
+.history-chart.compact .history-card {
+  padding: 10px;
+}
+
+.history-card-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.history-card-head strong,
+.history-card-head small {
+  display: block;
+}
+
+.history-card-head small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+.history-card-head span {
+  background: var(--chip-bg);
+  border-radius: 999px;
+  color: var(--muted);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 900;
+  padding: 5px 8px;
+}
+
 .active-ask-line {
+  stroke: var(--blue);
+}
+
+.active-ask-line-dot {
   stroke: var(--blue);
 }
 
@@ -783,7 +857,15 @@ select {
   stroke: var(--green);
 }
 
+.reference-line-dot {
+  stroke: var(--green);
+}
+
 .pressure-line {
+  stroke: var(--amber);
+}
+
+.pressure-line-dot {
   stroke: var(--amber);
 }
 
@@ -791,24 +873,56 @@ select {
   stroke: var(--red);
 }
 
+.demand-proxy-line-dot {
+  stroke: var(--red);
+}
+
 .saturation-line {
   stroke: var(--purple);
 }
 
+.saturation-line-dot {
+  stroke: var(--purple);
+}
+
+.active-supply-line {
+  stroke: var(--blue);
+}
+
+.active-supply-line-dot {
+  stroke: var(--blue);
+}
+
+.new-listings-line {
+  stroke: var(--green);
+}
+
+.new-listings-line-dot {
+  stroke: var(--green);
+}
+
+.unavailable-line {
+  stroke: var(--red);
+}
+
+.unavailable-line-dot {
+  stroke: var(--red);
+}
+
 .history-legend {
-  align-items: center;
   color: var(--muted);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+  display: grid;
+  gap: 8px;
   font-size: 12px;
   font-weight: 800;
 }
 
 .history-legend span {
   align-items: center;
-  display: inline-flex;
+  display: grid;
   gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-width: 0;
 }
 
 .history-legend i {
@@ -818,33 +932,41 @@ select {
   width: 9px;
 }
 
-.active-ask-dot {
+.active-ask-line-swatch {
   background: var(--blue);
 }
 
-.reference-dot {
+.reference-line-swatch {
   background: var(--green);
 }
 
-.pressure-dot {
+.pressure-line-swatch {
   background: var(--amber);
 }
 
-.demand-proxy-dot {
+.demand-proxy-line-swatch {
   background: var(--red);
 }
 
-.saturation-dot {
+.saturation-line-swatch {
   background: var(--purple);
+}
+
+.active-supply-line-swatch {
+  background: var(--blue);
+}
+
+.new-listings-line-swatch {
+  background: var(--green);
+}
+
+.unavailable-line-swatch {
+  background: var(--red);
 }
 
 .history-legend b {
   color: var(--ink);
   margin-left: 0;
-}
-
-.history-legend b:first-of-type {
-  margin-left: auto;
 }
 
 .history-stat-grid {
@@ -876,6 +998,13 @@ select {
   font-weight: 800;
   line-height: 1.35;
   margin-top: 3px;
+}
+
+.history-note {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  margin: 0;
 }
 
 .preset-history-grid {
@@ -1277,6 +1406,7 @@ select {
   .overview-metrics,
   .series-grid,
   .history-stat-grid,
+  .history-card-grid,
   .preset-history-grid,
   .leaderboard-grid,
   .overview-hero,

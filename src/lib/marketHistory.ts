@@ -16,7 +16,8 @@ function cleanPoint(point: MarketHistoryPoint): MarketHistoryPoint {
     demandPressureProxy: point.demandPressureProxy,
     supplySaturationShift: point.supplySaturationShift,
     activeSupply: point.activeSupply,
-    unavailableListings: point.unavailableListings
+    unavailableListings: point.unavailableListings,
+    newListings: point.newListings
   };
 }
 
@@ -38,7 +39,9 @@ export async function getMarketHistoryForKey(key: string): Promise<MarketHistory
       medianActiveAsk: snapshot.medianActiveAsk,
       referencePrice: snapshot.referencePrice,
       pressureScore: snapshot.demandBasis === "listing-lifecycle" ? snapshot.demandScore : undefined,
-      activeSupply: snapshot.includedListingCount
+      activeSupply: snapshot.includedListingCount,
+      unavailableListings: 0,
+      newListings: 0
     }));
   const capturePoints: MarketHistoryPoint[] = observationStore.captures
     .filter((capture) => capture.seriesKey === key)
@@ -55,7 +58,8 @@ export async function getMarketHistoryForKey(key: string): Promise<MarketHistory
           ?? demandPressureFromCapture(activeSupply, capture.unavailableListings),
         supplySaturationShift: capture.trend.supplySaturationShift ?? capture.supplySaturationShift,
         activeSupply,
-        unavailableListings: capture.unavailableListings
+        unavailableListings: capture.unavailableListings,
+        newListings: capture.newListings
       });
     });
   const points = [...snapshotPoints, ...capturePoints]
