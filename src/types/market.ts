@@ -202,6 +202,7 @@ export interface MarketHistoryPoint {
   supplySaturationShift?: number;
   activeSupply?: number;
   unavailableListings?: number;
+  newListings?: number;
 }
 
 export interface MarketHistorySeries {

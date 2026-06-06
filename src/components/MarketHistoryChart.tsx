@@ -1,162 +1,216 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { MarketHistorySeries } from "@/types/market";
+import type { MarketHistoryPoint, MarketHistorySeries } from "@/types/market";
 import { money } from "@/lib/market/math";
 
-type ChartMode = "price" | "pressure";
 type RangeDays = 7 | 30 | 60;
 
-function seriesPath(values: Array<number | undefined>, width: number, height: number, min: number, max: number) {
-  const usable = values
-    .map((value, index) => ({ value, index }))
-    .filter((point): point is { value: number; index: number } => typeof point.value === "number");
-  if (!usable.length) return "";
-  const range = max - min || 1;
-  return usable.map((point, orderedIndex) => {
-    const x = values.length <= 1 ? width / 2 : (point.index / (values.length - 1)) * width;
-    const y = height - ((point.value - min) / range) * height;
-    return `${orderedIndex === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(" ");
+interface IndexedLine {
+  key: string;
+  label: string;
+  className: string;
+  values: Array<number | undefined>;
+  format: (value: number | undefined) => string;
+}
+
+const WIDTH = 680;
+const HEIGHT = 220;
+
+function numbers(values: Array<number | undefined>) {
+  return values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
 }
 
 function latestNumber(values: Array<number | undefined>) {
   return [...values].reverse().find((value): value is number => typeof value === "number");
 }
 
-function average(values: Array<number | undefined>) {
-  const usable = values.filter((value): value is number => typeof value === "number");
-  return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : undefined;
+function filterPoints(points: MarketHistoryPoint[], rangeDays: RangeDays) {
+  const latestCaptureTime = points.length ? new Date(points[points.length - 1].capturedAt).getTime() : undefined;
+  if (!latestCaptureTime) return [];
+  return points.filter((point) => {
+    const capturedTime = new Date(point.capturedAt).getTime();
+    return latestCaptureTime - capturedTime <= rangeDays * 24 * 60 * 60 * 1000;
+  }).slice(-30);
+}
+
+function dateRangeLabel(points: MarketHistoryPoint[], rangeDays: RangeDays) {
+  if (!points.length) return "No captures yet";
+  if (points.length === 1) return `${rangeDays}d window, latest ${points[0].label}`;
+  return `${rangeDays}d window, ${points[0].label} to ${points[points.length - 1].label}`;
+}
+
+function indexValues(values: Array<number | undefined>) {
+  const base = values.find((value): value is number => typeof value === "number" && value > 0);
+  if (!base) return values.map(() => undefined);
+  return values.map((value) => typeof value === "number" ? (value / base) * 100 : undefined);
+}
+
+function pathFor(values: Array<number | undefined>, min: number, max: number) {
+  const usable = values
+    .map((value, index) => ({ value, index }))
+    .filter((point): point is { value: number; index: number } => typeof point.value === "number");
+  if (!usable.length) return "";
+  const range = max - min || 1;
+  return usable.map((point, orderedIndex) => {
+    const x = values.length <= 1 ? WIDTH / 2 : (point.index / (values.length - 1)) * WIDTH;
+    const y = HEIGHT - ((point.value - min) / range) * HEIGHT;
+    return `${orderedIndex === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join(" ");
+}
+
+function dotsFor(values: Array<number | undefined>, min: number, max: number) {
+  const range = max - min || 1;
+  return values.map((value, index) => {
+    if (typeof value !== "number") return undefined;
+    return {
+      x: values.length <= 1 ? WIDTH / 2 : (index / (values.length - 1)) * WIDTH,
+      y: HEIGHT - ((value - min) / range) * HEIGHT
+    };
+  });
 }
 
 function percent(value: number | undefined) {
   return typeof value === "number" ? `${(value * 100).toFixed(1)}%` : "N/A";
 }
 
-function saturationValue(value: number | undefined) {
+function saturation(value: number | undefined) {
   return typeof value === "number" ? `${value.toFixed(2)}x` : "N/A";
 }
 
+function sourceLines(points: MarketHistoryPoint[]): IndexedLine[] {
+  return [
+    {
+      key: "active-ask",
+      label: "eBay active median ask",
+      className: "active-ask-line",
+      values: points.map((point) => point.medianActiveAsk),
+      format: (value) => typeof value === "number" ? money(value) : "N/A"
+    },
+    {
+      key: "reference",
+      label: "Pokemon TCG reference",
+      className: "reference-line",
+      values: points.map((point) => point.referencePrice),
+      format: (value) => typeof value === "number" ? money(value) : "N/A"
+    },
+    {
+      key: "pressure",
+      label: "Observed pressure score",
+      className: "pressure-line",
+      values: points.map((point) => point.pressureScore),
+      format: (value) => typeof value === "number" ? `${value}/100` : "N/A"
+    },
+    {
+      key: "supply",
+      label: "Included active supply",
+      className: "active-supply-line",
+      values: points.map((point) => point.activeSupply),
+      format: (value) => typeof value === "number" ? String(value) : "N/A"
+    }
+  ];
+}
+
 export function MarketHistoryChart({ history, compact = false }: { history: MarketHistorySeries; compact?: boolean }) {
-  const [mode, setMode] = useState<ChartMode>("price");
   const [rangeDays, setRangeDays] = useState<RangeDays>(30);
-  const latestCaptureTime = history.points.length
-    ? new Date(history.points[history.points.length - 1].capturedAt).getTime()
-    : undefined;
-  const points = history.points.filter((point) => {
-    if (!latestCaptureTime) return false;
-    const capturedTime = new Date(point.capturedAt).getTime();
-    return latestCaptureTime - capturedTime <= rangeDays * 24 * 60 * 60 * 1000;
-  }).slice(-24);
-  const width = 520;
-  const height = compact ? 86 : 150;
-  const priceValues = points.flatMap((point) => [point.medianActiveAsk, point.referencePrice])
-    .filter((value): value is number => typeof value === "number");
-  const priceMin = priceValues.length ? Math.min(...priceValues) : 0;
-  const priceMax = priceValues.length ? Math.max(...priceValues) : 1;
-  const pressureMin = 0;
-  const pressureMax = 100;
-  const activePath = useMemo(
-    () => seriesPath(points.map((point) => point.medianActiveAsk), width, height, priceMin, priceMax),
-    [height, points, priceMax, priceMin]
-  );
-  const referencePath = useMemo(
-    () => seriesPath(points.map((point) => point.referencePrice), width, height, priceMin, priceMax),
-    [height, points, priceMax, priceMin]
-  );
-  const pressurePath = useMemo(
-    () => seriesPath(points.map((point) => point.pressureScore), width, height, pressureMin, pressureMax),
-    [height, points]
-  );
-  const demandPressurePath = useMemo(
-    () => seriesPath(points.map((point) => typeof point.demandPressureProxy === "number" ? point.demandPressureProxy * 100 : undefined), width, height, pressureMin, pressureMax),
-    [height, points]
-  );
-  const saturationPath = useMemo(
-    () => seriesPath(points.map((point) => typeof point.supplySaturationShift === "number" ? Math.max(0, Math.min(100, point.supplySaturationShift * 50)) : undefined), width, height, pressureMin, pressureMax),
-    [height, points]
-  );
-  const hasPrice = Boolean(activePath || referencePath);
-  const hasPressure = Boolean(pressurePath || demandPressurePath || saturationPath);
+  const points = useMemo(() => filterPoints(history.points, rangeDays), [history.points, rangeDays]);
+  const lines = useMemo(() => sourceLines(points).filter((line) => numbers(line.values).length), [points]);
+  const indexedLines = lines.map((line) => ({ ...line, indexedValues: indexValues(line.values) }));
+  const indexedNumbers = indexedLines.flatMap((line) => numbers(line.indexedValues));
+  const min = indexedNumbers.length ? Math.min(80, Math.floor(Math.min(...indexedNumbers) / 5) * 5) : 80;
+  const max = indexedNumbers.length ? Math.max(120, Math.ceil(Math.max(...indexedNumbers) / 5) * 5) : 120;
   const latest = points[points.length - 1];
-  const latestPressure = latestNumber(points.map((point) => point.pressureScore));
-  const latestDemandProxy = latestNumber(points.map((point) => point.demandPressureProxy));
-  const latestSaturation = latestNumber(points.map((point) => point.supplySaturationShift));
-  const averagePressure = average(points.map((point) => point.pressureScore));
-  const dateRange = points.length > 1 ? `${points[0].label} to ${points[points.length - 1].label}` : latest?.label;
+  const hasEnoughTrend = points.length >= 2;
 
   return (
     <div className={`history-chart ${compact ? "compact" : ""}`}>
       <div className="history-chart-head">
         <div>
           <strong>Market History</strong>
-          <small>{latest ? `${rangeDays}d window, ${dateRange}` : "No captures yet"}</small>
+          <small>{dateRangeLabel(points, rangeDays)} | indexed comparison, first visible capture = 100</small>
         </div>
-        <div className="history-controls">
-          <div className="segmented-control" aria-label="Chart mode">
-            <button type="button" className={mode === "price" ? "active" : ""} onClick={() => setMode("price")}>Price</button>
-            <button type="button" className={mode === "pressure" ? "active" : ""} onClick={() => setMode("pressure")}>Pressure</button>
+        {!compact ? (
+          <div className="history-controls">
+            <div className="segmented-control range-control" aria-label="History range">
+              {[7, 30, 60].map((days) => (
+                <button
+                  key={days}
+                  type="button"
+                  className={rangeDays === days ? "active" : ""}
+                  onClick={() => setRangeDays(days as RangeDays)}
+                >
+                  {days}d
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="segmented-control range-control" aria-label="History range">
-            {[7, 30, 60].map((days) => (
-              <button
-                key={days}
-                type="button"
-                className={rangeDays === days ? "active" : ""}
-                onClick={() => setRangeDays(days as RangeDays)}
-              >
-                {days}d
-              </button>
-            ))}
-          </div>
-        </div>
+        ) : null}
       </div>
 
-      {(mode === "price" && !hasPrice) || (mode === "pressure" && !hasPressure) ? (
-        <p className="history-empty">Capture observations over time to populate this graph.</p>
+      {!hasEnoughTrend && !compact ? (
+        <p className="history-empty">This search needs at least two captures for a meaningful trend. Current values still appear in the legend.</p>
+      ) : null}
+
+      {indexedLines.length ? (
+        <div className="chart-frame unified-chart-frame">
+          <div className="axis-row">
+            <span>{max}</span>
+            <span>Index</span>
+          </div>
+          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Indexed market history comparison">
+            {[0, 0.25, 0.5, 0.75, 1].map((tick) => (
+              <line key={tick} className="grid-line" x1="0" y1={HEIGHT * tick} x2={WIDTH} y2={HEIGHT * tick} />
+            ))}
+            <line className="baseline-line" x1="0" y1={HEIGHT - ((100 - min) / (max - min || 1)) * HEIGHT} x2={WIDTH} y2={HEIGHT - ((100 - min) / (max - min || 1)) * HEIGHT} />
+            {indexedLines.map((line) => {
+              const linePath = pathFor(line.indexedValues, min, max);
+              const lineDots = dotsFor(line.indexedValues, min, max);
+              return (
+                <g key={line.key}>
+                  <path className={line.className} d={linePath} />
+                  {lineDots.map((dot, index) => dot ? (
+                    <circle key={`${line.key}-${index}`} className={`${line.className}-dot`} cx={dot.x} cy={dot.y} r={compact ? "3" : "4"} />
+                  ) : null)}
+                </g>
+              );
+            })}
+          </svg>
+          <div className="axis-row">
+            <span>{min}</span>
+            <span>{points[0]?.label ?? ""}{points.length > 1 ? ` -> ${points[points.length - 1].label}` : ""}</span>
+          </div>
+        </div>
       ) : (
-        <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${mode} history chart`}>
-          <line x1="0" y1={height} x2={width} y2={height} />
-          {mode === "price" ? (
-            <>
-              <path className="active-ask-line" d={activePath} />
-              <path className="reference-line" d={referencePath} />
-            </>
-          ) : (
-            <>
-              <path className="pressure-line" d={pressurePath} />
-              <path className="demand-proxy-line" d={demandPressurePath} />
-              <path className="saturation-line" d={saturationPath} />
-            </>
-          )}
-        </svg>
+        <p className="history-empty">Save observations over time to populate this graph.</p>
       )}
 
-      <div className="history-legend">
-        {mode === "price" ? (
-          <>
-            <span><i className="active-ask-dot" /> eBay median active ask from local JSON captures</span>
-            <span><i className="reference-dot" /> Pokemon TCG reference stored in local JSON</span>
-            <b>{latest?.medianActiveAsk ? `${money(latest.medianActiveAsk)} ask` : "N/A"}</b>
-            <b>{latest?.referencePrice ? `${money(latest.referencePrice)} ref` : "N/A ref"}</b>
-          </>
-        ) : (
-          <>
-            <span><i className="pressure-dot" /> Observed pressure score</span>
-            <span><i className="demand-proxy-dot" /> Disappearance pressure proxy</span>
-            <span><i className="saturation-dot" /> Supply saturation shift</span>
-            <b>{typeof latestPressure === "number" ? `${latestPressure}/100 latest` : "N/A"}</b>
-          </>
-        )}
+      <div className="history-legend unified-history-legend">
+        {lines.map((line) => {
+          const latestValue = latestNumber(line.values);
+          const indexedValue = latestNumber(indexValues(line.values));
+          return (
+            <span key={line.key}>
+              <i className={`${line.className}-swatch`} />
+              {line.label}
+              <b>{line.format(latestValue)}</b>
+              <small>{typeof indexedValue === "number" ? `${indexedValue.toFixed(1)} index` : "N/A index"}</small>
+            </span>
+          );
+        })}
       </div>
 
-      {mode === "pressure" ? (
-        <div className="history-stat-grid">
-          <span><strong>{typeof averagePressure === "number" ? averagePressure.toFixed(0) : "N/A"}</strong><small>{rangeDays}d avg pressure</small></span>
-          <span><strong>{percent(latestDemandProxy)}</strong><small>latest disappearance pressure</small></span>
-          <span><strong>{saturationValue(latestSaturation)}</strong><small>7d unsold share vs 30d</small></span>
-          <span><strong>{latest?.activeSupply ?? "N/A"}</strong><small>included active supply</small></span>
-        </div>
+      {!compact ? (
+        <>
+          <div className="history-stat-grid">
+            <span><strong>{latest?.medianActiveAsk ? money(latest.medianActiveAsk) : "N/A"}</strong><small>latest eBay active median ask</small></span>
+            <span><strong>{typeof latest?.pressureScore === "number" ? `${latest.pressureScore}/100` : "N/A"}</strong><small>observed pressure</small></span>
+            <span><strong>{percent(latest?.demandPressureProxy)}</strong><small>disappearance pressure proxy</small></span>
+            <span><strong>{saturation(latest?.supplySaturationShift)}</strong><small>unsold share shift</small></span>
+          </div>
+          <p className="history-note">
+            eBay lines come from local listing observations. Unavailable listings are a disappearance proxy, not confirmed sold listings.
+          </p>
+        </>
       ) : null}
     </div>
   );
